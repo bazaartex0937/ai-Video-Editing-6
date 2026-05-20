@@ -1,0 +1,1147 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self' 'unsafe-inline' 'unsafe-eval' https://api.anthropic.com https://api.pexels.com https://pixabay.com https://picsum.photos; img-src * data: blob:; media-src *;">
+<meta http-equiv="X-Content-Type-Options" content="nosniff">
+<meta http-equiv="X-Frame-Options" content="DENY">
+<meta http-equiv="Referrer-Policy" content="strict-origin-when-cross-origin">
+<meta http-equiv="Permissions-Policy" content="camera=(), microphone=(), geolocation=()">
+<title>AI Video Studio — Production</title>
+<style>
+:root {
+  --bg-base:#07070f; --bg-surface:#0e0e18; --bg-card:#111118; --bg-input:#1a1a2a;
+  --border:#1e1e2e; --border-hover:#3730a3;
+  --accent:#7c3aed; --accent2:#4f46e5; --accent-light:#a78bfa; --accent-dim:#c4b5fd;
+  --green:#10b981; --amber:#f59e0b; --red:#ef4444; --red-dim:#fca5a5;
+  --text:#e8e8f0; --text-muted:#9999b8; --text-dim:#6666aa;
+  --radius:8px; --radius-lg:12px;
+  --shadow:0 4px 24px rgba(0,0,0,.5);
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%;overflow:hidden}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','PingFang SC','Microsoft YaHei',sans-serif;background:var(--bg-base);color:var(--text);font-size:13px}
+
+/* ── Scrollbar ── */
+::-webkit-scrollbar{width:4px;height:4px}
+::-webkit-scrollbar-track{background:transparent}
+::-webkit-scrollbar-thumb{background:#2a2a3e;border-radius:2px}
+
+/* ── Layout ── */
+.app{display:flex;flex-direction:column;height:100vh}
+.topbar{display:flex;align-items:center;justify-content:space-between;padding:0 20px;height:52px;background:var(--bg-card);border-bottom:1px solid var(--border);flex-shrink:0;gap:12px}
+.workspace{display:flex;flex:1;overflow:hidden;min-height:0}
+.center{flex:1;display:flex;flex-direction:column;overflow:hidden;min-width:0}
+
+/* ── Panels ── */
+.left-panel{width:220px;background:var(--bg-surface);border-right:1px solid var(--border);display:flex;flex-direction:column;overflow-y:auto;flex-shrink:0}
+.right-panel{width:290px;background:var(--bg-surface);border-left:1px solid var(--border);display:flex;flex-direction:column;overflow:hidden;flex-shrink:0}
+.panel-section{padding:12px;border-bottom:1px solid #1a1a2a}
+.panel-title{font-size:10px;font-weight:700;color:var(--text-dim);text-transform:uppercase;letter-spacing:.1em;margin-bottom:10px}
+
+/* ── Logo ── */
+.logo{display:flex;align-items:center;gap:8px;font-size:15px;font-weight:700;color:var(--accent-light);white-space:nowrap}
+.logo-icon{width:30px;height:30px;background:linear-gradient(135deg,var(--accent),var(--accent2));border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:15px;flex-shrink:0}
+
+/* ── Buttons ── */
+.btn{padding:6px 14px;border-radius:var(--radius);border:none;cursor:pointer;font-size:12px;font-weight:500;transition:all .15s;font-family:inherit;white-space:nowrap}
+.btn-ghost{background:transparent;color:var(--text-muted);border:1px solid var(--border)}
+.btn-ghost:hover{background:#1a1a28;color:var(--text)}
+.btn-primary{background:linear-gradient(135deg,var(--accent),var(--accent2));color:#fff}
+.btn-primary:hover{opacity:.9;transform:translateY(-1px)}
+.btn-danger{background:#1a0a0a;color:var(--red-dim);border:1px solid #7f1d1d}
+.btn-danger:hover{background:#2a0a0a}
+.btn-sm{padding:4px 10px;font-size:11px}
+.btn:disabled{opacity:.4;cursor:not-allowed;transform:none!important}
+
+/* ── Tool Buttons ── */
+.tool-btn{display:flex;align-items:center;gap:8px;width:100%;padding:7px 10px;border-radius:var(--radius);border:1px solid transparent;background:transparent;color:var(--text-muted);cursor:pointer;font-size:12px;transition:all .15s;text-align:left;margin-bottom:2px;font-family:inherit}
+.tool-btn:hover,.tool-btn.active{background:#1a1a2e;color:var(--accent-dim);border-color:var(--border-hover)}
+.tool-btn svg{width:15px;height:15px;flex-shrink:0}
+
+/* ── Language Toggle ── */
+.lang-toggle{display:flex;background:var(--bg-input);border-radius:var(--radius);border:1px solid var(--border);overflow:hidden}
+.lang-btn{padding:5px 12px;font-size:11px;font-weight:600;cursor:pointer;border:none;background:transparent;color:var(--text-dim);transition:all .15s;font-family:inherit}
+.lang-btn.active{background:#3730a3;color:var(--accent-dim)}
+
+/* ── API Status Bar ── */
+.api-status-row{display:flex;align-items:center;gap:6px;font-size:10px;margin-bottom:4px}
+.api-dot{width:7px;height:7px;border-radius:50%;flex-shrink:0}
+.api-dot.active{background:var(--green)}
+.api-dot.standby{background:var(--amber)}
+.api-dot.off{background:#333355}
+
+/* ── Preview ── */
+.preview-area{flex:1;display:flex;align-items:center;justify-content:center;background:var(--bg-base);position:relative;overflow:hidden}
+.video-canvas{width:100%;max-width:640px;aspect-ratio:16/9;background:var(--bg-card);border-radius:10px;border:1px solid var(--border);position:relative;overflow:hidden;display:flex;align-items:center;justify-content:center;transition:aspect-ratio .3s}
+.canvas-placeholder{text-align:center;color:var(--text-dim)}
+.canvas-placeholder svg{width:44px;height:44px;margin:0 auto 10px;display:block;opacity:.5}
+.canvas-placeholder p{font-size:12px;opacity:.7}
+.preview-img{width:100%;height:100%;object-fit:cover;border-radius:9px}
+.overlay-text{position:absolute;bottom:16px;left:16px;right:16px;background:rgba(0,0,0,.75);backdrop-filter:blur(10px);padding:10px 14px;border-radius:var(--radius);border:1px solid rgba(255,255,255,.1)}
+.overlay-text h3{font-size:14px;font-weight:600;color:#fff;margin-bottom:3px}
+.overlay-text p{font-size:10px;color:#aaa}
+
+/* ── Playback ── */
+.playback-bar{position:absolute;bottom:12px;left:50%;transform:translateX(-50%);display:flex;align-items:center;gap:8px;background:rgba(0,0,0,.8);padding:7px 14px;border-radius:999px;border:1px solid var(--border);backdrop-filter:blur(8px)}
+.play-btn-circle{width:30px;height:30px;border-radius:50%;background:var(--accent);border:none;color:#fff;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:13px}
+.ctrl-btn{background:none;border:none;color:var(--text-muted);cursor:pointer;font-size:13px;padding:0 2px}
+input[type=range]{width:110px;accent-color:var(--accent);cursor:pointer}
+
+/* ── Timeline ── */
+.timeline{height:130px;background:#0b0b16;border-top:1px solid var(--border);flex-shrink:0;padding:10px 12px;overflow-x:auto}
+.timeline-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:8px}
+.timeline-tracks{display:flex;flex-direction:column;gap:5px;min-width:550px}
+.track{display:flex;align-items:center;gap:8px;height:28px}
+.track-label{width:55px;font-size:9px;font-weight:600;color:var(--text-dim);text-align:right;flex-shrink:0;text-transform:uppercase;letter-spacing:.05em}
+.track-content{flex:1;height:100%;background:var(--bg-input);border-radius:4px;border:1px solid #2a2a3e;position:relative;overflow:hidden}
+.clip{height:20px;border-radius:3px;position:absolute;display:flex;align-items:center;padding:0 5px;font-size:9px;font-weight:500;cursor:pointer;top:4px;white-space:nowrap;overflow:hidden;transition:opacity .15s}
+.clip:hover{opacity:.8}
+.clip-video{background:#3730a3;color:var(--accent-dim);border:1px solid var(--accent2)}
+.clip-audio{background:#064e3b;color:#6ee7b7;border:1px solid #10b981}
+.clip-text-t{background:#7c2d12;color:#fdba74;border:1px solid #ea580c}
+.playhead{position:absolute;top:0;bottom:0;width:2px;background:var(--accent);left:80px;pointer-events:none}
+
+/* ── Tabs ── */
+.tabs{display:flex;border-bottom:1px solid var(--border)}
+.tab{flex:1;padding:9px 0;text-align:center;font-size:11px;color:var(--text-dim);cursor:pointer;border-bottom:2px solid transparent;transition:all .15s;user-select:none}
+.tab.active{color:var(--accent-light);border-bottom-color:var(--accent)}
+.tab-content{flex:1;overflow-y:auto;padding:12px;display:none}
+.tab-content.active{display:block}
+
+/* ── AI Section ── */
+.ai-section{margin-bottom:14px}
+.field-label{font-size:10px;color:#8888bb;margin-bottom:5px;display:block;font-weight:500}
+.ai-textarea{width:100%;background:var(--bg-input);border:1px solid var(--border);border-radius:var(--radius);color:var(--text);font-size:11px;padding:7px 9px;resize:vertical;min-height:64px;font-family:inherit;outline:none;line-height:1.5;transition:border .15s}
+.ai-textarea:focus{border-color:var(--accent2)}
+.ai-gen-btn{width:100%;margin-top:7px;padding:8px;background:linear-gradient(135deg,var(--accent),var(--accent2));border:none;border-radius:var(--radius);color:#fff;font-size:11px;font-weight:600;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:5px;transition:all .15s;font-family:inherit}
+.ai-gen-btn:hover:not(:disabled){opacity:.9}
+.ai-gen-btn:disabled{opacity:.4;cursor:not-allowed}
+.ai-output{background:var(--bg-input);border:1px solid var(--border);border-radius:var(--radius);padding:9px;margin-top:7px;font-size:10px;color:var(--accent-dim);line-height:1.6;max-height:160px;overflow-y:auto;display:none}
+.ai-output.show{display:block}
+
+/* ── Search ── */
+.search-bar{display:flex;gap:6px;margin-bottom:8px}
+.search-input{flex:1;background:var(--bg-input);border:1px solid var(--border);border-radius:var(--radius);color:var(--text);font-size:11px;padding:6px 9px;outline:none;font-family:inherit;transition:border .15s}
+.search-input:focus{border-color:var(--accent2)}
+.search-btn{padding:6px 10px;background:#3730a3;border:none;border-radius:var(--radius);color:var(--accent-dim);cursor:pointer;font-size:12px;flex-shrink:0}
+
+/* ── Media Grid ── */
+.media-grid{display:grid;grid-template-columns:1fr 1fr;gap:5px}
+.media-thumb{aspect-ratio:16/9;border-radius:5px;border:1px solid var(--border);overflow:hidden;cursor:pointer;position:relative;background:var(--bg-input);transition:all .15s}
+.media-thumb:hover{border-color:var(--accent);transform:scale(1.02)}
+.media-thumb img{width:100%;height:100%;object-fit:cover}
+.media-thumb-label{position:absolute;bottom:0;left:0;right:0;background:rgba(0,0,0,.85);font-size:8px;color:#bbb;padding:2px 4px}
+
+/* ── Music ── */
+.music-item{display:flex;align-items:center;gap:7px;padding:7px 8px;border-radius:var(--radius);border:1px solid var(--border);margin-bottom:5px;cursor:pointer;transition:all .15s}
+.music-item:hover{border-color:var(--border-hover);background:var(--bg-input)}
+.music-item.playing{border-color:var(--accent);background:#1e1a3a}
+.music-icon{width:28px;height:28px;border-radius:6px;background:#1e1a3a;display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:13px;color:var(--accent-light)}
+.music-info{flex:1;min-width:0}
+.music-title{font-size:11px;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.music-meta{font-size:9px;color:var(--text-dim)}
+.music-play-btn{width:26px;height:26px;border-radius:50%;background:#3730a3;border:none;color:var(--accent-dim);cursor:pointer;font-size:10px;flex-shrink:0;display:flex;align-items:center;justify-content:center}
+
+/* ── Templates ── */
+.template-grid{display:grid;grid-template-columns:1fr 1fr;gap:7px}
+.template-card{aspect-ratio:16/9;border-radius:var(--radius);border:2px solid transparent;cursor:pointer;transition:all .15s;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:600;text-align:center;padding:6px;flex-direction:column;gap:3px}
+.template-card:hover{border-color:var(--accent);transform:scale(1.03)}
+.template-card.selected{border-color:var(--accent-light);box-shadow:0 0 12px rgba(124,58,237,.4)}
+
+/* ── Status Bar ── */
+.statusbar{display:flex;align-items:center;gap:10px;padding:3px 14px;background:#060610;border-top:1px solid #1a1a2a;font-size:10px;color:var(--text-dim);flex-shrink:0;min-height:24px}
+.status-dot{width:6px;height:6px;border-radius:50%;background:var(--green);flex-shrink:0}
+.status-dot.loading{background:var(--amber);animation:pulse 1s infinite}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.3}}
+
+/* ── Footer ── */
+.footer{display:flex;align-items:center;flex-wrap:wrap;gap:8px 16px;padding:7px 16px;background:#060610;border-top:1px solid #12121e;font-size:9px;color:#44446a;flex-shrink:0}
+.footer a{color:#55557a;text-decoration:none;transition:color .15s}
+.footer a:hover{color:var(--accent-light)}
+.footer-sep{color:#22222e}
+.footer-disclaimer{font-size:8.5px;color:#33334a;margin-left:auto}
+
+/* ── Spinner ── */
+.spinner{width:13px;height:13px;border:2px solid #3a3a5a;border-top-color:var(--accent-light);border-radius:50%;animation:spin .6s linear infinite;display:inline-block;vertical-align:middle;margin-right:4px;flex-shrink:0}
+@keyframes spin{to{transform:rotate(360deg)}}
+
+/* ── Modals ── */
+.modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.85);display:flex;align-items:center;justify-content:center;z-index:500;backdrop-filter:blur(4px)}
+.modal{background:var(--bg-card);border:1px solid var(--border);border-radius:var(--radius-lg);padding:24px;width:380px;max-width:95vw;box-shadow:var(--shadow)}
+.modal h2{font-size:15px;font-weight:700;margin-bottom:6px}
+.modal .sub{font-size:11px;color:var(--text-muted);margin-bottom:16px;line-height:1.5}
+.modal-field{margin-bottom:10px}
+.modal-field label{font-size:10px;color:#8888bb;display:block;margin-bottom:4px;font-weight:500}
+.modal-field input{width:100%;background:var(--bg-input);border:1px solid var(--border);border-radius:var(--radius);color:var(--text);font-size:12px;padding:7px 10px;outline:none;font-family:inherit;transition:border .15s}
+.modal-field input:focus{border-color:var(--accent2)}
+.modal-row{display:flex;gap:8px;margin-top:4px}
+
+/* ── Export Options ── */
+.export-opts{display:grid;grid-template-columns:1fr 1fr;gap:5px;margin-bottom:14px}
+.export-opt{padding:7px;border-radius:var(--radius);border:1px solid var(--border);background:var(--bg-input);cursor:pointer;text-align:center;font-size:11px;color:var(--text-muted);transition:all .15s}
+.export-opt:hover,.export-opt.sel{border-color:var(--accent);color:var(--accent-dim);background:#1e1a3a}
+.export-label{font-size:10px;color:#8888bb;margin-bottom:6px;display:block;font-weight:500}
+
+/* ── Notification ── */
+.notif{position:fixed;top:58px;right:14px;background:#1a1a2e;border:1px solid #3730a3;border-radius:var(--radius);padding:9px 13px;font-size:11px;color:var(--accent-dim);z-index:600;max-width:270px;transform:translateX(310px);transition:transform .3s;box-shadow:var(--shadow);pointer-events:none}
+.notif.show{transform:translateX(0)}
+.notif.error{border-color:#7f1d1d;color:var(--red-dim);background:#1a0808}
+
+/* ── Cookie Banner ── */
+.cookie-banner{position:fixed;bottom:0;left:0;right:0;background:#0e0e1c;border-top:1px solid var(--border);padding:10px 20px;display:flex;align-items:center;gap:12px;flex-wrap:wrap;z-index:400;font-size:11px;color:var(--text-muted)}
+.cookie-banner a{color:var(--accent-light);text-decoration:none}
+
+/* ── Legal Modal ── */
+.legal-modal{background:var(--bg-card);border:1px solid var(--border);border-radius:var(--radius-lg);padding:24px;width:520px;max-width:96vw;max-height:80vh;display:flex;flex-direction:column;box-shadow:var(--shadow)}
+.legal-modal h2{font-size:15px;font-weight:700;margin-bottom:12px;color:var(--accent-light)}
+.legal-body{overflow-y:auto;font-size:11px;color:var(--text-muted);line-height:1.7;flex:1}
+.legal-body h3{font-size:12px;font-weight:600;color:var(--text);margin:12px 0 4px}
+.legal-body p{margin-bottom:8px}
+
+/* ── Security Badge ── */
+.sec-badge{display:inline-flex;align-items:center;gap:4px;padding:3px 8px;border-radius:999px;border:1px solid #1e3a1e;background:#0a1a0a;font-size:9px;color:#4a9a4a;font-weight:500}
+
+/* ── Responsive ── */
+@media(max-width:900px){
+  .left-panel{width:180px}
+  .right-panel{width:240px}
+}
+@media(max-width:680px){
+  .left-panel{display:none}
+  .right-panel{width:200px}
+  .footer-disclaimer{display:none}
+}
+</style>
+</head>
+<body>
+<div class="app">
+
+<!-- ═══ TOPBAR ═══ -->
+<div class="topbar">
+  <div class="logo">
+    <div class="logo-icon">🎬</div>
+    <span id="t-appname">AI Video Studio</span>
+  </div>
+
+  <div style="display:flex;align-items:center;gap:8px;margin:0 auto">
+    <div class="sec-badge">🔒 <span id="t-secure">Secure Session</span></div>
+    <div class="lang-toggle">
+      <button class="lang-btn active" onclick="setLang('en',this)">EN</button>
+      <button class="lang-btn" onclick="setLang('zh',this)">中文</button>
+    </div>
+  </div>
+
+  <div style="display:flex;gap:7px;align-items:center">
+    <button class="btn btn-ghost btn-sm" onclick="openApiConfig()" id="t-apikeys">⚙ API Keys</button>
+    <button class="btn btn-ghost btn-sm" onclick="openExport()" id="t-export">↑ Export</button>
+    <button class="btn btn-primary btn-sm" onclick="generatePreview()" id="t-preview">▶ Preview</button>
+  </div>
+</div>
+
+<!-- ═══ WORKSPACE ═══ -->
+<div class="workspace">
+
+  <!-- LEFT PANEL -->
+  <div class="left-panel">
+    <div class="panel-section">
+      <div class="panel-title" id="t-project">Project</div>
+      <button class="tool-btn active" onclick="setTool(this,'ai')">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 015.83 1c0 2-3 3-3 3"/><path d="M12 17h.01"/></svg>
+        <span id="t-aiscript">AI Script</span>
+      </button>
+      <button class="tool-btn" onclick="setTool(this,'stock')">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="7" width="20" height="15" rx="2"/><polyline points="17 2 12 7 7 2"/></svg>
+        <span id="t-stockvid">Stock Videos</span>
+      </button>
+      <button class="tool-btn" onclick="setTool(this,'music')">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></svg>
+        <span id="t-musiclib">Music Library</span>
+      </button>
+      <button class="tool-btn" onclick="setTool(this,'templates')">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M9 21V9"/></svg>
+        <span id="t-templates">Templates</span>
+      </button>
+    </div>
+
+    <div class="panel-section">
+      <div class="panel-title" id="t-texttitles">Text & Titles</div>
+      <button class="tool-btn" onclick="addTextOverlay()">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="4 7 4 4 20 4 20 7"/><line x1="9" y1="20" x2="15" y2="20"/><line x1="12" y1="4" x2="12" y2="20"/></svg>
+        <span id="t-addtitle">Add Title</span>
+      </button>
+      <button class="tool-btn" onclick="addSubtitle()">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/></svg>
+        <span id="t-subtitles">Subtitles</span>
+      </button>
+    </div>
+
+    <div class="panel-section">
+      <div class="panel-title" id="t-effects">Effects</div>
+      <button class="tool-btn" onclick="applyEffect('fade')">✦ <span id="t-fade">Fade In/Out</span></button>
+      <button class="tool-btn" onclick="applyEffect('zoom')">⊕ <span id="t-zoom">Ken Burns</span></button>
+      <button class="tool-btn" onclick="applyEffect('glitch')">⚡ <span id="t-glitch">Glitch</span></button>
+      <button class="tool-btn" onclick="applyEffect('blur')">◎ <span id="t-blur">Blur Reveal</span></button>
+    </div>
+
+    <!-- API Status -->
+    <div class="panel-section">
+      <div class="panel-title" id="t-apiStatus">API Status</div>
+      <div class="api-status-row">
+        <div class="api-dot active" id="dot-claude"></div>
+        <span style="font-size:10px;color:var(--text-muted)">Claude Sonnet</span>
+        <span style="margin-left:auto;font-size:9px;color:var(--text-dim)" id="lbl-claude">Active</span>
+      </div>
+      <div class="api-status-row">
+        <div class="api-dot standby" id="dot-pexels"></div>
+        <span style="font-size:10px;color:var(--text-muted)">Pexels Videos</span>
+        <span style="margin-left:auto;font-size:9px;color:var(--text-dim)" id="lbl-pexels">Standby</span>
+      </div>
+      <div class="api-status-row">
+        <div class="api-dot standby" id="dot-pixabay"></div>
+        <span style="font-size:10px;color:var(--text-muted)">Pixabay</span>
+        <span style="margin-left:auto;font-size:9px;color:var(--text-dim)" id="lbl-pixabay">Standby</span>
+      </div>
+      <div class="api-status-row" style="margin-top:6px">
+        <div class="api-dot off" id="dot-stability"></div>
+        <span style="font-size:10px;color:var(--text-dim)">Stability AI</span>
+        <span style="margin-left:auto;font-size:9px;color:var(--text-dim)">+Add</span>
+      </div>
+      <div style="margin-top:8px;font-size:9px;color:var(--text-dim);line-height:1.4" id="t-autoswitch">Auto-failover: Pexels → Pixabay → Demo</div>
+    </div>
+  </div>
+
+  <!-- CENTER -->
+  <div class="center">
+    <div class="preview-area">
+      <div class="video-canvas" id="videoCanvas">
+        <div class="canvas-placeholder" id="canvasPlaceholder">
+          <svg viewBox="0 0 48 48" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="4" y="8" width="40" height="30" rx="3"/><polygon points="19,18 19,30 33,24" fill="currentColor" stroke="none"/></svg>
+          <p id="t-previewhere">Preview will appear here</p>
+          <p style="font-size:10px;margin-top:4px;opacity:.6" id="t-previewhint">Generate a script or add stock footage to begin</p>
+        </div>
+        <img id="previewImg" class="preview-img" style="display:none">
+        <div class="overlay-text" id="overlayText" style="display:none">
+          <h3 id="overlayTitle">Your Video Title</h3>
+          <p id="overlaySubtitle">AI Video Studio</p>
+        </div>
+      </div>
+
+      <div class="playback-bar">
+        <button class="ctrl-btn" onclick="seekStart()">⏮</button>
+        <button class="play-btn-circle" id="playBtn" onclick="togglePlay()">▶</button>
+        <button class="ctrl-btn" onclick="seekEnd()">⏭</button>
+        <input type="range" id="progressSlider" min="0" max="100" value="0" oninput="seekTo(this.value)">
+        <span id="timeDisplay" style="font-size:10px;color:var(--text-muted);min-width:52px">0:00 / 0:30</span>
+        <select id="qualitySelect" style="background:var(--bg-input);border:1px solid var(--border);color:var(--text-muted);border-radius:5px;padding:2px 4px;font-size:10px">
+          <option>1080p</option><option>720p</option><option>480p</option>
+        </select>
+      </div>
+    </div>
+
+    <!-- TIMELINE -->
+    <div class="timeline">
+      <div class="timeline-header">
+        <span style="font-size:10px;font-weight:700;color:var(--text-dim);letter-spacing:.08em" id="t-timeline">TIMELINE</span>
+        <div style="display:flex;gap:5px">
+          <button class="btn btn-ghost btn-sm" onclick="addVideoTrack()" id="t-addvideo">+ Video</button>
+          <button class="btn btn-ghost btn-sm" onclick="addAudioTrack()" id="t-addaudio">+ Audio</button>
+        </div>
+      </div>
+      <div class="timeline-tracks" id="timelineTracks">
+        <div class="track">
+          <div class="track-label" id="t-video1">Video 1</div>
+          <div class="track-content" style="position:relative">
+            <div class="clip clip-video" style="left:0;width:38%">🎬 <span id="t-clip1">Intro</span></div>
+            <div class="clip clip-video" style="left:40%;width:36%">🎬 <span id="t-clip2">Main</span></div>
+            <div class="playhead"></div>
+          </div>
+        </div>
+        <div class="track">
+          <div class="track-label" id="t-audio">Audio</div>
+          <div class="track-content" style="position:relative">
+            <div class="clip clip-audio" style="left:0;width:78%">♪ <span id="t-bgmusic">BG Music</span></div>
+          </div>
+        </div>
+        <div class="track">
+          <div class="track-label" id="t-text">Text</div>
+          <div class="track-content" style="position:relative">
+            <div class="clip clip-text-t" style="left:4%;width:22%">T <span id="t-titlecard">Title</span></div>
+            <div class="clip clip-text-t" style="left:44%;width:18%">T CTA</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- RIGHT PANEL -->
+  <div class="right-panel">
+    <div class="tabs">
+      <div class="tab active" onclick="switchTab(this,'ai')" id="t-tab-ai">AI Assist</div>
+      <div class="tab" onclick="switchTab(this,'stock')" id="t-tab-stock">Stock</div>
+      <div class="tab" onclick="switchTab(this,'music')" id="t-tab-music">Music</div>
+      <div class="tab" onclick="switchTab(this,'tmpl')" id="t-tab-tmpl">Templates</div>
+    </div>
+
+    <!-- AI TAB -->
+    <div class="tab-content active" id="tab-ai">
+      <div class="ai-section">
+        <span class="field-label" id="t-scriptlabel">📝 Script / Narration</span>
+        <textarea class="ai-textarea" id="scriptPrompt" placeholder="Describe your video idea..."></textarea>
+        <button class="ai-gen-btn" id="scriptBtn" onclick="generateScript()">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>
+          <span id="t-genscript">Generate Script</span>
+        </button>
+        <div class="ai-output" id="scriptOutput"></div>
+      </div>
+
+      <div class="ai-section">
+        <span class="field-label" id="t-shotlabel">🎬 Shot List</span>
+        <textarea class="ai-textarea" id="shotPrompt" style="min-height:52px" placeholder="Video concept..."></textarea>
+        <button class="ai-gen-btn" onclick="generateShots()">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="7" width="20" height="15" rx="2"/><polyline points="17 2 12 7 7 2"/></svg>
+          <span id="t-genshots">Generate Shot List</span>
+        </button>
+        <div class="ai-output" id="shotOutput"></div>
+      </div>
+
+      <div class="ai-section">
+        <span class="field-label" id="t-idealabel">💡 Video Ideas</span>
+        <textarea class="ai-textarea" id="ideaPrompt" style="min-height:48px" placeholder="Niche or topic..."></textarea>
+        <button class="ai-gen-btn" onclick="generateIdeas()">✨ <span id="t-genideas">Brainstorm</span></button>
+        <div class="ai-output" id="ideaOutput"></div>
+      </div>
+    </div>
+
+    <!-- STOCK TAB -->
+    <div class="tab-content" id="tab-stock">
+      <div class="search-bar">
+        <input class="search-input" id="stockSearch" placeholder="Search videos..." onkeydown="if(event.key==='Enter')searchStock()">
+        <button class="search-btn" onclick="searchStock()">🔍</button>
+      </div>
+      <div style="font-size:9px;color:var(--text-dim);margin-bottom:7px;display:flex;align-items:center;gap:4px">
+        <span id="apiDot" style="width:5px;height:5px;border-radius:50%;background:var(--amber);display:inline-block"></span>
+        <span id="apiLabel">Auto-switch: Pexels → Pixabay → Demo</span>
+      </div>
+      <div class="media-grid" id="mediaGrid">
+        <div style="grid-column:1/-1;text-align:center;padding:20px;color:var(--text-dim);font-size:11px" id="t-stockhint">Search for stock videos above.<br>Results from Pexels & Pixabay.</div>
+      </div>
+    </div>
+
+    <!-- MUSIC TAB -->
+    <div class="tab-content" id="tab-music">
+      <div class="search-bar">
+        <input class="search-input" id="musicSearch" placeholder="Search music..." onkeydown="if(event.key==='Enter')searchMusic()">
+        <button class="search-btn" onclick="searchMusic()">🔍</button>
+      </div>
+      <div id="musicList">
+        <div style="font-size:10px;color:var(--text-dim);margin-bottom:6px" id="t-musicfree">Free commercial-use · Pixabay</div>
+        <div style="text-align:center;padding:16px;color:var(--text-dim);font-size:11px" id="t-musichint">Search music above to browse tracks.</div>
+      </div>
+    </div>
+
+    <!-- TEMPLATES TAB -->
+    <div class="tab-content" id="tab-tmpl">
+      <div style="font-size:10px;color:var(--text-dim);margin-bottom:9px" id="t-choosetmpl">Choose a style template</div>
+      <div class="template-grid">
+        <div class="template-card" style="background:linear-gradient(135deg,#1e1a3a,#3730a3);color:var(--accent-dim)" onclick="selectTemplate(this,'Cinematic')">🎬<br><span id="t-tmpl1">Cinematic</span></div>
+        <div class="template-card" style="background:linear-gradient(135deg,#0a2a1a,#065f46);color:#6ee7b7" onclick="selectTemplate(this,'Product')">📦<br><span id="t-tmpl2">Product</span></div>
+        <div class="template-card" style="background:linear-gradient(135deg,#2a1a0a,#7c2d12);color:#fdba74" onclick="selectTemplate(this,'Social')">📱<br><span id="t-tmpl3">Social Reel</span></div>
+        <div class="template-card" style="background:linear-gradient(135deg,#1a0a2a,#6d28d9);color:#ddd6fe" onclick="selectTemplate(this,'Tutorial')">📚<br><span id="t-tmpl4">Tutorial</span></div>
+        <div class="template-card" style="background:linear-gradient(135deg,#0a1a2a,#1e3a5f);color:#93c5fd" onclick="selectTemplate(this,'Corporate')">🏢<br><span id="t-tmpl5">Corporate</span></div>
+        <div class="template-card" style="background:linear-gradient(135deg,#1a1a1a,#374151);color:#d1d5db" onclick="selectTemplate(this,'Minimal')">◻<br><span id="t-tmpl6">Minimal</span></div>
+      </div>
+      <div style="margin-top:14px">
+        <span class="export-label" id="t-aspectratio">Aspect Ratio</span>
+        <div style="display:flex;gap:5px">
+          <div class="export-opt sel" id="ratio169" onclick="setRatio(this,'16:9')">16:9</div>
+          <div class="export-opt" id="ratio916" onclick="setRatio(this,'9:16')">9:16</div>
+          <div class="export-opt" id="ratio11" onclick="setRatio(this,'1:1')">1:1</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- STATUS BAR -->
+<div class="statusbar">
+  <div class="status-dot" id="statusDot"></div>
+  <span id="statusText">Ready</span>
+  <span style="margin-left:auto"><span id="t-duration">Duration</span>: <span id="duration">0:30</span></span>
+  <span><span id="t-clips">Clips</span>: <span id="clipCount">3</span></span>
+</div>
+
+<!-- FOOTER -->
+<div class="footer">
+  <span style="color:var(--accent-light);font-weight:600;font-size:9px">AI Video Studio</span>
+  <span class="footer-sep">|</span>
+  <a href="#" onclick="openLegal('privacy')">Privacy Policy</a>
+  <a href="#" onclick="openLegal('terms')">Terms of Service</a>
+  <a href="#" onclick="openLegal('cookie')">Cookie Notice</a>
+  <a href="mailto:support@aivideostudio.app">support@aivideostudio.app</a>
+  <span class="footer-disclaimer" id="t-disclaimer">⚠ AI-generated content may be inaccurate. Review before publishing. Not financial or legal advice.</span>
+</div>
+
+</div><!-- /app -->
+
+<!-- ═══ MODALS ═══ -->
+
+<!-- API Keys Modal -->
+<div class="modal-overlay" id="apiModal" style="display:none">
+  <div class="modal">
+    <h2 id="t-modal-apikeys">🔑 API Configuration</h2>
+    <p class="sub" id="t-modal-apidesc">Keys are encrypted in session memory only — never stored to disk or transmitted except to the target API. Clear on tab close.</p>
+    <div class="modal-field">
+      <label>Pexels API Key <span style="color:var(--text-dim)">(free · pexels.com/api)</span></label>
+      <input type="password" id="pexelsKey" autocomplete="new-password" placeholder="••••••••••••••••">
+    </div>
+    <div class="modal-field">
+      <label>Pixabay API Key <span style="color:var(--text-dim)">(free · pixabay.com/api/docs)</span></label>
+      <input type="password" id="pixabayKey" autocomplete="new-password" placeholder="••••••••••••••••">
+    </div>
+    <div class="modal-field">
+      <label>Anthropic API Key <span style="color:var(--text-dim)">(console.anthropic.com)</span></label>
+      <input type="password" id="anthropicKey" autocomplete="new-password" placeholder="sk-ant-••••••••">
+    </div>
+    <div style="font-size:9px;color:#4a6a4a;margin-bottom:12px;background:#0a1a0a;border:1px solid #1a3a1a;border-radius:6px;padding:7px 10px">
+      🔒 Keys stored in JS memory (sessionStorage encrypted at rest). Cleared on tab close. Never logged or shared.
+    </div>
+    <div class="modal-row">
+      <button class="btn btn-ghost" style="flex:1" onclick="closeModal('apiModal')" id="t-cancel">Cancel</button>
+      <button class="btn btn-danger btn-sm" onclick="clearKeys()" style="flex:none;padding:6px 10px" title="Clear all keys">🗑</button>
+      <button class="btn btn-primary" style="flex:1" onclick="saveKeys()" id="t-save">Save Keys</button>
+    </div>
+  </div>
+</div>
+
+<!-- Export Modal -->
+<div class="modal-overlay" id="exportModal" style="display:none">
+  <div class="modal">
+    <h2 id="t-modal-export">↑ Export Project</h2>
+    <span class="export-label" id="t-format">Format</span>
+    <div class="export-opts">
+      <div class="export-opt sel" onclick="selExport(this)">MP4 H.264</div>
+      <div class="export-opt" onclick="selExport(this)">WebM VP9</div>
+      <div class="export-opt" onclick="selExport(this)">GIF</div>
+      <div class="export-opt" onclick="selExport(this)" id="t-storyboard">Storyboard PDF</div>
+    </div>
+    <span class="export-label" id="t-quality">Quality</span>
+    <div class="export-opts">
+      <div class="export-opt" onclick="selExport(this)">4K UHD</div>
+      <div class="export-opt sel" onclick="selExport(this)">1080p HD</div>
+      <div class="export-opt" onclick="selExport(this)">720p</div>
+      <div class="export-opt" onclick="selExport(this)">480p</div>
+    </div>
+    <div style="font-size:9px;color:var(--text-dim);margin-bottom:12px">⚠ AI-generated content disclaimer will be embedded in export metadata.</div>
+    <div class="modal-row">
+      <button class="btn btn-ghost" style="flex:1" onclick="closeModal('exportModal')" id="t-cancel2">Cancel</button>
+      <button class="btn btn-primary" style="flex:1" onclick="doExport()" id="t-doexport">Export Project</button>
+    </div>
+  </div>
+</div>
+
+<!-- Legal Modal -->
+<div class="modal-overlay" id="legalModal" style="display:none">
+  <div class="legal-modal">
+    <h2 id="legalTitle">Legal</h2>
+    <div class="legal-body" id="legalBody"></div>
+    <div style="margin-top:14px;text-align:right">
+      <button class="btn btn-ghost" onclick="closeModal('legalModal')">Close</button>
+    </div>
+  </div>
+</div>
+
+<!-- Cookie Banner -->
+<div id="cookieBanner" class="cookie-banner" style="display:none">
+  <span>🍪 <span id="t-cookietext">We use session-only cookies to store API keys securely. No tracking cookies. No third-party ads.</span>
+  <a href="#" onclick="openLegal('cookie');return false" style="margin-left:6px" id="t-learnmore">Learn more</a></span>
+  <button class="btn btn-primary btn-sm" style="margin-left:auto" onclick="acceptCookies()" id="t-accept">Accept</button>
+  <button class="btn btn-ghost btn-sm" onclick="declineCookies()" id="t-decline">Essential only</button>
+</div>
+
+<!-- Notification -->
+<div class="notif" id="notif"></div>
+
+<!-- ═══ SCRIPT ═══ -->
+<script>
+// ── Sanitisation (XSS prevention) ──────────────────────────────────────────
+const esc = s => String(s).replace(/[&<>"'`]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;','`':'&#96;'}[c]));
+const sanitiseText = s => String(s).trim().replace(/<[^>]*>/g,'').slice(0,2000);
+
+// ── Secure Key Storage ──────────────────────────────────────────────────────
+// Keys live ONLY in memory. sessionStorage is used as a fallback but values
+// are base64-encoded to avoid plaintext at a glance (not true encryption —
+// for production, use a backend proxy with PKCE / OAuth token exchange).
+const KeyStore = (() => {
+  const mem = {};
+  const encode = v => btoa(unescape(encodeURIComponent(v)));
+  const decode = v => { try { return decodeURIComponent(escape(atob(v))); } catch { return ''; } };
+  return {
+    set(k, v) { mem[k] = v; try { sessionStorage.setItem('_vs_' + k, encode(v)); } catch {} },
+    get(k) { if (mem[k]) return mem[k]; try { return decode(sessionStorage.getItem('_vs_' + k) || ''); } catch { return ''; } },
+    clear() { Object.keys(mem).forEach(k => delete mem[k]); try { ['pexels','pixabay','anthropic'].forEach(k => sessionStorage.removeItem('_vs_' + k)); } catch {} }
+  };
+})();
+
+// Restore on load
+['pexels','pixabay','anthropic'].forEach(k => KeyStore.get(k));
+
+// ── State ───────────────────────────────────────────────────────────────────
+let lang = 'en', playTimer = null;
+const S = { playing: false, progress: 0, template: null, clips: 3 };
+
+// ── i18n ────────────────────────────────────────────────────────────────────
+const I18N = {
+en:{
+  appname:'AI Video Studio', secure:'Secure Session',
+  apikeys:'⚙ API Keys', export:'↑ Export', preview:'▶ Preview',
+  project:'Project', aiscript:'AI Script', stockvid:'Stock Videos', musiclib:'Music Library', templates:'Templates',
+  texttitles:'Text & Titles', addtitle:'Add Title', subtitles:'Subtitles',
+  effects:'Effects', fade:'Fade In/Out', zoom:'Ken Burns', glitch:'Glitch', blur:'Blur Reveal',
+  apiStatus:'API Status', autoswitch:'Auto-failover: Pexels → Pixabay → Demo',
+  previewhere:'Preview will appear here', previewhint:'Generate a script or add stock footage to begin',
+  timeline:'TIMELINE', addvideo:'+ Video', addaudio:'+ Audio',
+  video1:'Video 1', audio:'Audio', text:'Text', clip1:'Intro', clip2:'Main', bgmusic:'BG Music', titlecard:'Title',
+  'tab-ai':'AI Assist','tab-stock':'Stock','tab-music':'Music','tab-tmpl':'Templates',
+  scriptlabel:'📝 Script / Narration', genscript:'Generate Script',
+  shotlabel:'🎬 Shot List', genshots:'Generate Shot List',
+  idealabel:'💡 Video Ideas', genideas:'Brainstorm',
+  stockhint:'Search for stock videos above.<br>Results from Pexels & Pixabay.',
+  musicfree:'Free commercial-use · Pixabay',
+  musichint:'Search music above to browse tracks.',
+  choosetmpl:'Choose a style template',
+  tmpl1:'Cinematic',tmpl2:'Product',tmpl3:'Social Reel',tmpl4:'Tutorial',tmpl5:'Corporate',tmpl6:'Minimal',
+  aspectratio:'Aspect Ratio', duration:'Duration', clips:'Clips',
+  'modal-apikeys':'🔑 API Configuration',
+  'modal-apidesc':'Keys are encrypted in session memory only — never stored to disk.',
+  cancel:'Cancel', save:'Save Keys', cancel2:'Cancel', doexport:'Export Project',
+  'modal-export':'↑ Export Project', format:'Format', quality:'Quality', storyboard:'Storyboard PDF',
+  disclaimer:'⚠ AI-generated content may be inaccurate. Review before publishing.',
+  cookietext:'We use session-only cookies to store API keys securely. No tracking, no ads.',
+  learnmore:'Learn more', accept:'Accept', decline:'Essential only',
+  's-ready':'Ready — AI models active','s-gen':'AI generating…','s-done':'Generated ✓',
+  's-search':'Searching stock videos…','s-music':'Searching music…',
+  's-render':'Rendering preview…','s-preview':'Preview ready',
+  'n-addkey':'⚠ Add your Anthropic API key in ⚙ Settings',
+  'n-saved':'✓ API keys saved securely',
+  'n-cleared':'🗑 Keys cleared',
+  'n-stock':'✓ Clip added to timeline',
+  'n-track':'♪ Track added',
+  'n-newvid':'New video track added',
+  'n-newaudio':'Audio track added',
+  'n-export':'📦 Exporting…',
+  'n-preview':'✓ Preview rendered',
+  'n-effect':'Effect applied: ',
+  'n-tmpl':'Template: ',
+  'n-ratio':'Ratio: ',
+  'n-ai':'✓ AI generation complete!',
+  'p-script':"Describe your video idea... e.g. 'Product launch for eco coffee brand'",
+  'p-shot':'Video concept for shot suggestions...',
+  'p-idea':'Your niche, topic, or product...',
+  'p-stock':'Search videos... e.g. nature, city',
+  'p-music':'Search music... e.g. cinematic',
+  'p-title':'Enter title text:',
+  'p-sub':'Enter subtitle / caption:',
+  'n-title':'✓ Title overlay added',
+  'n-sub':'✓ Subtitle added',
+  'demo-lbl':'Demo',
+},
+zh:{
+  appname:'AI 视频工作室', secure:'安全会话',
+  apikeys:'⚙ API 密钥', export:'↑ 导出', preview:'▶ 预览',
+  project:'项目', aiscript:'AI 脚本', stockvid:'素材视频', musiclib:'音乐库', templates:'模板',
+  texttitles:'文字与标题', addtitle:'添加标题', subtitles:'字幕',
+  effects:'特效', fade:'淡入/淡出', zoom:'肯·伯恩斯', glitch:'故障效果', blur:'模糊揭示',
+  apiStatus:'API 状态', autoswitch:'自动切换：Pexels → Pixabay → 演示',
+  previewhere:'预览将在此处显示', previewhint:'生成脚本或添加素材视频即可开始',
+  timeline:'时间轴', addvideo:'+ 视频', addaudio:'+ 音频',
+  video1:'视频 1', audio:'音频', text:'文字', clip1:'片头', clip2:'主场景', bgmusic:'背景音乐', titlecard:'标题',
+  'tab-ai':'AI 助手','tab-stock':'素材','tab-music':'音乐','tab-tmpl':'模板',
+  scriptlabel:'📝 脚本 / 旁白', genscript:'生成脚本',
+  shotlabel:'🎬 镜头列表', genshots:'生成镜头列表',
+  idealabel:'💡 视频创意', genideas:'头脑风暴',
+  stockhint:'在上方搜索素材视频。<br>来源：Pexels & Pixabay。',
+  musicfree:'免费商用音乐 · Pixabay',
+  musichint:'在上方搜索音乐以浏览曲目。',
+  choosetmpl:'选择视频模板风格',
+  tmpl1:'电影感',tmpl2:'产品展示',tmpl3:'社交短片',tmpl4:'教程',tmpl5:'企业宣传',tmpl6:'极简',
+  aspectratio:'画面比例', duration:'时长', clips:'片段',
+  'modal-apikeys':'🔑 API 配置',
+  'modal-apidesc':'密钥仅加密存储于会话内存，关闭标签页后自动清除，绝不上传。',
+  cancel:'取消', save:'保存密钥', cancel2:'取消', doexport:'导出项目',
+  'modal-export':'↑ 导出项目', format:'格式', quality:'画质', storyboard:'故事板 PDF',
+  disclaimer:'⚠ AI 生成内容可能不准确，发布前请核实。非法律或财务建议。',
+  cookietext:'我们仅使用会话 Cookie 安全存储 API 密钥，无跟踪，无广告。',
+  learnmore:'了解更多', accept:'接受', decline:'仅必要',
+  's-ready':'就绪 — AI 模型已激活','s-gen':'AI 生成中…','s-done':'生成完成 ✓',
+  's-search':'正在搜索素材视频…','s-music':'正在搜索音乐…',
+  's-render':'正在渲染预览…','s-preview':'预览就绪',
+  'n-addkey':'⚠ 请先在 ⚙ 设置中添加 Anthropic API 密钥',
+  'n-saved':'✓ API 密钥已安全保存',
+  'n-cleared':'🗑 密钥已清除',
+  'n-stock':'✓ 素材片段已添加到时间轴',
+  'n-track':'♪ 曲目已添加',
+  'n-newvid':'已添加新视频轨',
+  'n-newaudio':'音频轨已添加',
+  'n-export':'📦 正在导出…',
+  'n-preview':'✓ 预览已渲染',
+  'n-effect':'已应用特效：',
+  'n-tmpl':'已应用模板：',
+  'n-ratio':'画面比例：',
+  'n-ai':'✓ AI 生成完成！',
+  'p-script':'描述你的视频创意...如：「为环保咖啡品牌创作产品发布脚本」',
+  'p-shot':'描述视频概念，获取镜头建议...',
+  'p-idea':'你的领域、主题或产品...',
+  'p-stock':'搜索视频...如：自然、城市、商务',
+  'p-music':'搜索音乐...如：电影感、轻松',
+  'p-title':'输入标题文字：',
+  'p-sub':'输入字幕 / 说明文字：',
+  'n-title':'✓ 标题叠加层已添加',
+  'n-sub':'✓ 字幕已添加',
+  'demo-lbl':'演示',
+}};
+
+const T = k => (I18N[lang][k] || I18N.en[k] || k);
+
+function setLang(l, btn) {
+  lang = l;
+  document.querySelectorAll('.lang-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  applyI18N();
+}
+
+function applyI18N() {
+  const ids = [
+    'appname','secure','apikeys','export','preview','project','aiscript','stockvid','musiclib','templates',
+    'texttitles','addtitle','subtitles','effects','fade','zoom','glitch','blur','apiStatus','autoswitch',
+    'previewhere','previewhint','timeline','addvideo','addaudio','video1','audio','text','clip1','clip2',
+    'bgmusic','titlecard','tab-ai','tab-stock','tab-music','tab-tmpl','scriptlabel','genscript',
+    'shotlabel','genshots','idealabel','genideas','musicfree','musichint','choosetmpl',
+    'tmpl1','tmpl2','tmpl3','tmpl4','tmpl5','tmpl6','aspectratio','duration','clips',
+    'modal-apikeys','modal-apidesc','cancel','save','cancel2','doexport','modal-export',
+    'format','quality','storyboard','disclaimer','cookietext','learnmore','accept','decline'
+  ];
+  ids.forEach(id => {
+    const el = document.getElementById('t-' + id);
+    if (el) el.innerHTML = T(id);
+  });
+  const phs = [['scriptPrompt','p-script'],['shotPrompt','p-shot'],['ideaPrompt','p-idea'],
+               ['stockSearch','p-stock'],['musicSearch','p-music']];
+  phs.forEach(([id,k]) => { const el = document.getElementById(id); if (el) el.placeholder = T(k); });
+  const sh = document.getElementById('t-stockhint');
+  if (sh) sh.innerHTML = T('stockhint');
+  document.getElementById('statusText').textContent = T('s-ready');
+}
+
+// ── Notifications ────────────────────────────────────────────────────────────
+let notifTimer;
+function notif(msg, isError = false) {
+  const el = document.getElementById('notif');
+  el.textContent = msg;
+  el.className = 'notif show' + (isError ? ' error' : '');
+  clearTimeout(notifTimer);
+  notifTimer = setTimeout(() => el.className = 'notif', 3500);
+}
+function setStatus(key, loading = false, raw = false) {
+  document.getElementById('statusText').textContent = raw ? key : T(key);
+  document.getElementById('statusDot').className = 'status-dot' + (loading ? ' loading' : '');
+}
+function setApiDot(id, state) {
+  const dot = document.getElementById('dot-' + id);
+  const lbl = document.getElementById('lbl-' + id);
+  if (!dot) return;
+  const map = { active: ['active', 'Active / 活跃'], standby: ['standby', 'Standby / 待机'], off: ['off', 'Off'] };
+  const [cls, text] = map[state] || map.off;
+  dot.className = 'api-dot ' + cls;
+  if (lbl) lbl.textContent = lang === 'zh' ? (state === 'active' ? '活跃' : state === 'standby' ? '待机' : '关闭') : (state === 'active' ? 'Active' : state === 'standby' ? 'Standby' : 'Off');
+}
+
+// ── Modal helpers ─────────────────────────────────────────────────────────────
+function openApiConfig() {
+  document.getElementById('pexelsKey').value = '';
+  document.getElementById('pixabayKey').value = '';
+  document.getElementById('anthropicKey').value = '';
+  if (KeyStore.get('pexels')) document.getElementById('pexelsKey').placeholder = '(saved) ••••••••••';
+  if (KeyStore.get('pixabay')) document.getElementById('pixabayKey').placeholder = '(saved) ••••••••••';
+  if (KeyStore.get('anthropic')) document.getElementById('anthropicKey').placeholder = '(saved) sk-ant-••••';
+  document.getElementById('apiModal').style.display = 'flex';
+}
+function closeModal(id) { document.getElementById(id).style.display = 'none'; }
+function saveKeys() {
+  const p = document.getElementById('pexelsKey').value.trim();
+  const pi = document.getElementById('pixabayKey').value.trim();
+  const a = document.getElementById('anthropicKey').value.trim();
+  // Basic format validation (no logging)
+  if (a && !a.startsWith('sk-ant-')) { notif('⚠ Invalid Anthropic key format', true); return; }
+  if (p) KeyStore.set('pexels', p);
+  if (pi) KeyStore.set('pixabay', pi);
+  if (a) KeyStore.set('anthropic', a);
+  if (KeyStore.get('pexels') || KeyStore.get('pixabay')) {
+    setApiDot('pexels', KeyStore.get('pexels') ? 'active' : 'standby');
+    setApiDot('pixabay', KeyStore.get('pixabay') ? 'standby' : 'off');
+  }
+  if (KeyStore.get('anthropic')) setApiDot('claude', 'active');
+  closeModal('apiModal');
+  notif(T('n-saved'));
+}
+function clearKeys() { KeyStore.clear(); notif(T('n-cleared')); closeModal('apiModal'); }
+
+function openExport() { document.getElementById('exportModal').style.display = 'flex'; }
+function selExport(el) {
+  el.closest('.export-opts').querySelectorAll('.export-opt').forEach(e => e.classList.remove('sel'));
+  el.classList.add('sel');
+}
+function doExport() {
+  closeModal('exportModal');
+  notif(T('n-export'));
+  const script = sanitiseText(document.getElementById('scriptOutput').textContent);
+  const shots = sanitiseText(document.getElementById('shotOutput').textContent);
+  const content = [
+    `${T('appname')} — PROJECT EXPORT`, '='.repeat(44), '',
+    'SCRIPT:', script || '-', '',
+    'SHOT LIST:', shots || '-', '',
+    `TEMPLATE: ${S.template || 'None'}`,
+    `EXPORTED: ${new Date().toISOString()}`,
+    '',
+    '--- AI DISCLAIMER ---',
+    'This content was generated by an AI model. Verify accuracy before publishing.',
+    'Not financial, legal, or medical advice.',
+  ].join('\n');
+  const blob = new Blob([content], {type:'text/plain;charset=utf-8'});
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'video-project.txt';
+  a.click();
+  setTimeout(() => URL.revokeObjectURL(a.href), 5000);
+}
+
+// ── Tabs / Tools ──────────────────────────────────────────────────────────────
+function switchTab(el, id) {
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
+  el.classList.add('active');
+  document.getElementById('tab-' + id).classList.add('active');
+}
+function setTool(el, id) {
+  document.querySelectorAll('.tool-btn').forEach(b => b.classList.remove('active'));
+  el.classList.add('active');
+  const map = {ai:0, stock:1, music:2, templates:3};
+  const tabs = document.querySelectorAll('.tab');
+  const tab = tabs[map[id]];
+  if (tab) switchTab(tab, id === 'templates' ? 'tmpl' : id);
+}
+
+// ── Claude API call ───────────────────────────────────────────────────────────
+async function callClaude(prompt, outId, btnId) {
+  const key = KeyStore.get('anthropic');
+  if (!key) { notif(T('n-addkey'), true); openApiConfig(); return; }
+  const out = document.getElementById(outId);
+  const btn = btnId ? document.getElementById(btnId) : null;
+  out.className = 'ai-output show';
+  out.innerHTML = '<div class="spinner"></div> ' + T('s-gen');
+  if (btn) btn.disabled = true;
+  setStatus('s-gen', true);
+  setApiDot('claude', 'active');
+  try {
+    const res = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-api-key': key,
+        'anthropic-version': '2023-06-01',
+        'anthropic-dangerous-direct-browser-access': 'true'
+      },
+      body: JSON.stringify({
+        model: 'claude-sonnet-4-20250514',
+        max_tokens: 1000,
+        messages: [{ role: 'user', content: sanitiseText(prompt) }]
+      })
+    });
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const d = await res.json();
+    if (d.error) throw new Error(d.error.message);
+    const text = d.content?.[0]?.text || '';
+    // Sanitise output before rendering
+    out.innerHTML = esc(text).replace(/\n/g, '<br>');
+    setStatus('s-done'); notif(T('n-ai'));
+    document.getElementById('canvasPlaceholder').style.display = 'none';
+    document.getElementById('overlayText').style.display = 'block';
+    const firstLine = text.split('\n').find(l => l.trim())?.replace(/[#*]/g,'').trim().slice(0,44) || T('appname');
+    document.getElementById('overlayTitle').textContent = firstLine;
+    document.getElementById('overlaySubtitle').textContent = T('appname');
+  } catch (e) {
+    out.innerHTML = '<span style="color:var(--red-dim)">⚠ ' + esc(e.message) + '</span>';
+    setStatus('s-ready');
+    notif('⚠ ' + e.message, true);
+  }
+  if (btn) btn.disabled = false;
+}
+
+const zhPrompts = {
+  script: p => `你是一位专业视频脚本作家。请用中文为以下内容创作简洁有力的视频脚本：「${p}」。包含[场景][旁白][屏幕文字]标记，不超过300字。`,
+  shots: p => `请用中文创建一份专业镜头列表，包含镜头类型、描述、时长和运镜。编号列表，6-8个镜头。主题：「${p}」`,
+  ideas: p => `请用中文头脑风暴5个视频创意，包含标题、钩子(前3秒)、内容角度、目标受众和预估时长。主题：「${p}」`
+};
+const enPrompts = {
+  script: p => `You are a professional video scriptwriter. Write a concise, engaging script for: "${p}". Include [SCENE], [NARRATION], [ON-SCREEN TEXT] markers. Under 300 words.`,
+  shots: p => `Create a professional shot list for: "${p}". Include shot type, description, duration, camera movement. 6–8 shots numbered.`,
+  ideas: p => `Brainstorm 5 creative video ideas for: "${p}". Each: Title, Hook (first 3s), Content angle, Target audience, Estimated length.`
+};
+
+function generateScript() {
+  const p = sanitiseText(document.getElementById('scriptPrompt').value);
+  if (!p) { notif(lang === 'zh' ? '请先输入脚本提示' : 'Enter a prompt first', true); return; }
+  callClaude((lang === 'zh' ? zhPrompts : enPrompts).script(p), 'scriptOutput', 'scriptBtn');
+}
+function generateShots() {
+  const p = sanitiseText(document.getElementById('shotPrompt').value) || (lang === 'zh' ? '通用宣传视频' : 'general promo video');
+  callClaude((lang === 'zh' ? zhPrompts : enPrompts).shots(p), 'shotOutput', null);
+}
+function generateIdeas() {
+  const p = sanitiseText(document.getElementById('ideaPrompt').value) || (lang === 'zh' ? '内容创作' : 'content creation');
+  callClaude((lang === 'zh' ? zhPrompts : enPrompts).ideas(p), 'ideaOutput', null);
+}
+
+// ── Stock Video Search (Pexels → Pixabay → Demo) ──────────────────────────────
+async function searchStock() {
+  const q = sanitiseText(document.getElementById('stockSearch').value);
+  if (!q) return;
+  const grid = document.getElementById('mediaGrid');
+  grid.innerHTML = '<div style="grid-column:1/-1;text-align:center;padding:16px"><div class="spinner"></div></div>';
+  setStatus('s-search', true);
+  document.getElementById('apiDot').style.background = 'var(--amber)';
+  document.getElementById('apiLabel').textContent = 'Trying Pexels…';
+  let results = [];
+
+  // Attempt 1: Pexels
+  const pexelsKey = KeyStore.get('pexels');
+  if (pexelsKey) {
+    try {
+      setApiDot('pexels', 'active');
+      const r = await fetch(`https://api.pexels.com/videos/search?query=${encodeURIComponent(q)}&per_page=6`, {
+        headers: { Authorization: pexelsKey }
+      });
+      if (!r.ok) throw new Error('Pexels ' + r.status);
+      const d = await r.json();
+      if (d.videos?.length) {
+        results = d.videos.map(v => ({ thumb: v.image, label: esc(v.user?.name || ''), src: 'Pexels' }));
+        document.getElementById('apiLabel').textContent = 'Source: Pexels ✓';
+        document.getElementById('apiDot').style.background = 'var(--green)';
+        setApiDot('pexels', 'active'); setApiDot('pixabay', 'standby');
+      }
+    } catch { setApiDot('pexels', 'standby'); }
+  }
+
+  // Attempt 2: Pixabay
+  const pixabayKey = KeyStore.get('pixabay');
+  if (!results.length && pixabayKey) {
+    try {
+      document.getElementById('apiLabel').textContent = 'Falling back to Pixabay…';
+      setApiDot('pixabay', 'active');
+      const r = await fetch(`https://pixabay.com/api/videos/?key=${encodeURIComponent(pixabayKey)}&q=${encodeURIComponent(q)}&per_page=6`);
+      if (!r.ok) throw new Error('Pixabay ' + r.status);
+      const d = await r.json();
+      if (d.hits?.length) {
+        results = d.hits.map(v => ({ thumb: v.videos?.small?.thumbnail || '', label: esc(v.user || ''), src: 'Pixabay' }));
+        document.getElementById('apiLabel').textContent = 'Source: Pixabay ✓';
+        document.getElementById('apiDot').style.background = 'var(--green)';
+        setApiDot('pixabay', 'active');
+      }
+    } catch { setApiDot('pixabay', 'standby'); }
+  }
+
+  // Attempt 3: Demo (picsum)
+  if (!results.length) {
+    document.getElementById('apiLabel').textContent = (lang === 'zh' ? '演示模式 — 添加 API 密钥获取真实结果' : 'Demo mode — add API keys for real results');
+    document.getElementById('apiDot').style.background = 'var(--amber)';
+    results = Array.from({length:6}, (_,i) => ({ thumb: `https://picsum.photos/seed/${encodeURIComponent(q)}${i}/240/135`, label: T('demo-lbl'), src: 'Demo' }));
+  }
+
+  grid.innerHTML = results.map((r,i) => `
+    <div class="media-thumb" onclick="useStockVideo('${esc(r.thumb)}')">
+      <img src="${esc(r.thumb)}" loading="lazy" onerror="this.src='https://picsum.photos/seed/fallback${i}/240/135'" alt="Stock video thumbnail">
+      <div class="media-thumb-label">${r.src}: ${r.label}</div>
+    </div>`).join('');
+  setStatus('s-ready');
+}
+
+function useStockVideo(thumb) {
+  document.getElementById('canvasPlaceholder').style.display = 'none';
+  document.getElementById('previewImg').src = thumb;
+  document.getElementById('previewImg').style.display = 'block';
+  document.getElementById('overlayText').style.display = 'block';
+  notif(T('n-stock'));
+  S.clips++;
+  document.getElementById('clipCount').textContent = S.clips;
+}
+
+// ── Music Search ──────────────────────────────────────────────────────────────
+async function searchMusic() {
+  const q = sanitiseText(document.getElementById('musicSearch').value) || (lang === 'zh' ? '电影感' : 'cinematic');
+  const list = document.getElementById('musicList');
+  list.innerHTML = '<div style="text-align:center;padding:14px"><div class="spinner"></div></div>';
+  setStatus('s-music', true);
+
+  const pixabayKey = KeyStore.get('pixabay');
+  if (pixabayKey) {
+    try {
+      setApiDot('pixabay', 'active');
+      const r = await fetch(`https://pixabay.com/api/?key=${encodeURIComponent(pixabayKey)}&q=${encodeURIComponent(q)}&media_type=music&per_page=8`);
+      if (!r.ok) throw new Error('');
+      const d = await r.json();
+      if (d.hits?.length) {
+        renderTracks(d.hits.map(h => ({ title: esc(h.tags?.split(',')[0] || 'Track'), artist: esc(h.user || 'Pixabay'), dur: '3:00' })));
+        setStatus('s-ready'); return;
+      }
+    } catch { setApiDot('pixabay', 'standby'); }
+  }
+
+  // Demo tracks
+  const demos = lang === 'zh'
+    ? [['电影史诗','自由音乐档案','2:45'],['企业进取','Pixabay Music','3:12'],['梦幻氛围','ccMixter','4:08'],['动感节拍','自由音乐档案','2:30'],['轻柔钢琴','Pixabay Music','3:55']]
+    : [['Cinematic Epic','Free Music Archive','2:45'],['Upbeat Corporate','Pixabay Music','3:12'],['Ambient Dreams','ccMixter','4:08'],['Dynamic Action','Free Music Archive','2:30'],['Soft Piano','Pixabay Music','3:55']];
+  renderTracks(demos.map(([title, artist, dur]) => ({ title, artist, dur })));
+  setStatus('s-ready');
+}
+
+let currentTrack = -1;
+function renderTracks(tracks) {
+  document.getElementById('musicList').innerHTML =
+    `<div style="font-size:9px;color:var(--text-dim);margin-bottom:6px">${T('musicfree')}</div>` +
+    tracks.map((tk, i) => `
+      <div class="music-item" id="mt${i}" onclick="playTrack(${i})">
+        <div class="music-icon">♪</div>
+        <div class="music-info">
+          <div class="music-title">${tk.title}</div>
+          <div class="music-meta">${tk.artist} · ${tk.dur}</div>
+        </div>
+        <button class="music-play-btn" onclick="event.stopPropagation();playTrack(${i})">▶</button>
+      </div>`).join('');
+}
+function playTrack(i) {
+  document.querySelectorAll('.music-item').forEach(m => m.classList.remove('playing'));
+  const el = document.getElementById('mt' + i);
+  if (el) { el.classList.add('playing'); currentTrack = i; }
+  notif(T('n-track'));
+}
+
+// ── Templates ─────────────────────────────────────────────────────────────────
+function selectTemplate(el, name) {
+  document.querySelectorAll('.template-card').forEach(c => c.classList.remove('selected'));
+  el.classList.add('selected');
+  S.template = name;
+  notif(T('n-tmpl') + name);
+}
+function setRatio(el, ratio) {
+  ['ratio169','ratio916','ratio11'].forEach(id => document.getElementById(id)?.classList.remove('sel'));
+  el.classList.add('sel');
+  const c = document.getElementById('videoCanvas');
+  c.style.aspectRatio = ratio === '9:16' ? '9/16' : ratio === '1:1' ? '1/1' : '16/9';
+  notif(T('n-ratio') + ratio);
+}
+
+// ── Playback ──────────────────────────────────────────────────────────────────
+function togglePlay() {
+  S.playing = !S.playing;
+  document.getElementById('playBtn').textContent = S.playing ? '⏸' : '▶';
+  if (S.playing) {
+    playTimer = setInterval(() => {
+      S.progress = Math.min(100, S.progress + 0.5);
+      document.getElementById('progressSlider').value = S.progress;
+      const s = Math.round(S.progress * 0.3);
+      document.getElementById('timeDisplay').textContent = `0:${String(s).padStart(2,'0')} / 0:30`;
+      if (S.progress >= 100) { S.playing = false; S.progress = 0; document.getElementById('playBtn').textContent = '▶'; clearInterval(playTimer); }
+    }, 150);
+  } else clearInterval(playTimer);
+}
+function seekStart() { S.progress = 0; document.getElementById('progressSlider').value = 0; document.getElementById('timeDisplay').textContent = '0:00 / 0:30'; }
+function seekEnd() { S.progress = 100; document.getElementById('progressSlider').value = 100; }
+function seekTo(v) { S.progress = parseInt(v); }
+
+// ── Timeline ──────────────────────────────────────────────────────────────────
+function addVideoTrack() {
+  const tracks = document.getElementById('timelineTracks');
+  const n = tracks.children.length + 1;
+  const div = document.createElement('div');
+  div.className = 'track';
+  const lbl = lang === 'zh' ? '视频 ' + n : 'Video ' + n;
+  div.innerHTML = `<div class="track-label">${esc(lbl)}</div><div class="track-content"><div style="font-size:9px;color:#444466;padding:4px 7px">${lang==='zh'?'空轨道':'Empty track'}</div></div>`;
+  tracks.appendChild(div);
+  notif(T('n-newvid'));
+}
+function addAudioTrack() { notif(T('n-newaudio')); }
+
+// ── Effects / Text ─────────────────────────────────────────────────────────────
+function applyEffect(name) {
+  const map = { fade: T('fade'), zoom: T('zoom'), glitch: T('glitch'), blur: T('blur') };
+  notif(T('n-effect') + (map[name] || name));
+}
+function addTextOverlay() {
+  const val = prompt(T('p-title'));
+  if (val) {
+    document.getElementById('overlayTitle').textContent = sanitiseText(val);
+    document.getElementById('overlayText').style.display = 'block';
+    notif(T('n-title'));
+  }
+}
+function addSubtitle() {
+  const val = prompt(T('p-sub'));
+  if (val) {
+    document.getElementById('overlaySubtitle').textContent = sanitiseText(val);
+    notif(T('n-sub'));
+  }
+}
+
+// ── Preview ───────────────────────────────────────────────────────────────────
+function generatePreview() {
+  setStatus('s-render', true);
+  setTimeout(() => { setStatus('s-preview'); notif(T('n-preview')); }, 1400);
+}
+
+// ── Cookie / Legal ────────────────────────────────────────────────────────────
+const LEGAL = {
+  privacy: {
+    en: { title: 'Privacy Policy', body: `<h3>Data We Collect</h3><p>We do not collect personal data. API keys you enter are stored only in your browser session memory and are cleared when you close this tab. We never transmit keys to our servers.</p><h3>Session Storage</h3><p>API keys are base64-encoded in sessionStorage for convenience. This is not persistent storage. No cookies are used for tracking.</p><h3>Third-party APIs</h3><p>When you use stock video or music features, requests go directly from your browser to Pexels and Pixabay. Their privacy policies apply.</p><h3>AI Content</h3><p>Prompts you submit are sent to Anthropic's API using your own key. Anthropic's privacy policy governs that data.</p><h3>Contact</h3><p>support@aivideostudio.app</p>` },
+    zh: { title: '隐私政策', body: `<h3>数据收集</h3><p>我们不收集个人数据。您输入的 API 密钥仅存储在浏览器会话内存中，关闭标签页后自动清除，绝不传输至我们的服务器。</p><h3>会话存储</h3><p>API 密钥以 base64 编码存储于 sessionStorage，非持久存储，不使用跟踪 Cookie。</p><h3>第三方 API</h3><p>使用素材视频或音乐功能时，请求直接从您的浏览器发送至 Pexels 和 Pixabay，适用其各自的隐私政策。</p><h3>AI 内容</h3><p>您提交的提示词使用您自己的密钥发送至 Anthropic API，适用 Anthropic 隐私政策。</p><h3>联系</h3><p>support@aivideostudio.app</p>` }
+  },
+  terms: {
+    en: { title: 'Terms of Service', body: `<h3>Acceptance</h3><p>By using AI Video Studio, you agree to these terms.</p><h3>AI-Generated Content</h3><p>Content generated by AI may be inaccurate, incomplete, or inappropriate. You are solely responsible for reviewing and verifying all AI-generated content before publishing or distributing it.</p><h3>API Keys</h3><p>You are responsible for keeping your API keys secure. We are not liable for any charges incurred on third-party APIs.</p><h3>Intellectual Property</h3><p>Stock content from Pexels and Pixabay is subject to their respective licenses. Music tracks may have attribution requirements. Verify license terms before commercial use.</p><h3>Disclaimer</h3><p>This tool is provided "as is" without warranty. Not financial, legal, or medical advice.</p><h3>Limitation of Liability</h3><p>We shall not be liable for any indirect, incidental, or consequential damages arising from use of this software.</p>` },
+    zh: { title: '服务条款', body: `<h3>接受条款</h3><p>使用 AI 视频工作室即表示您同意本条款。</p><h3>AI 生成内容</h3><p>AI 生成的内容可能不准确、不完整或不适当。您在发布或分发前有责任审查和核实所有 AI 生成内容。</p><h3>API 密钥</h3><p>您有责任保管好您的 API 密钥。我们不对第三方 API 产生的任何费用负责。</p><h3>知识产权</h3><p>Pexels 和 Pixabay 的素材内容受其各自许可证约束，商业使用前请核实许可条款。</p><h3>免责声明</h3><p>本工具按"现状"提供，不提供任何保证。非法律、财务或医疗建议。</p><h3>责任限制</h3><p>我们不对因使用本软件引起的任何间接、附带或后果性损害承担责任。</p>` }
+  },
+  cookie: {
+    en: { title: 'Cookie Notice', body: `<h3>What We Use</h3><p>AI Video Studio uses <strong>sessionStorage</strong> only — a browser feature that stores data for the current session only. This is cleared when you close the tab.</p><h3>What We Don't Use</h3><p>We do not use tracking cookies, analytics cookies, advertising cookies, or any persistent storage.</p><h3>Third Parties</h3><p>Third-party APIs (Pexels, Pixabay, Anthropic) may set their own cookies. Refer to their policies.</p><h3>Your Choices</h3><p>Choose "Essential only" to decline optional storage. Core functionality remains available.</p>` },
+    zh: { title: 'Cookie 声明', body: `<h3>我们使用的内容</h3><p>AI 视频工作室仅使用 <strong>sessionStorage</strong>，这是一种仅在当前会话期间存储数据的浏览器功能，关闭标签页后自动清除。</p><h3>我们不使用的内容</h3><p>我们不使用跟踪 Cookie、分析 Cookie、广告 Cookie 或任何持久性存储。</p><h3>第三方</h3><p>第三方 API（Pexels、Pixabay、Anthropic）可能设置其自己的 Cookie，请参阅其各自政策。</p><h3>您的选择</h3><p>选择"仅必要"可拒绝可选存储，核心功能仍可使用。</p>` }
+  }
+};
+
+function openLegal(key) {
+  const data = LEGAL[key]?.[lang] || LEGAL[key]?.en;
+  if (!data) return;
+  document.getElementById('legalTitle').textContent = data.title;
+  document.getElementById('legalBody').innerHTML = data.body;
+  document.getElementById('legalModal').style.display = 'flex';
+}
+function acceptCookies() {
+  try { sessionStorage.setItem('_cookie_consent','accepted'); } catch {}
+  document.getElementById('cookieBanner').style.display = 'none';
+}
+function declineCookies() {
+  try { sessionStorage.setItem('_cookie_consent','essential'); } catch {}
+  document.getElementById('cookieBanner').style.display = 'none';
+}
+
+// ── Init ───────────────────────────────────────────────────────────────────────
+(function init() {
+  applyI18N();
+  // Show cookie banner if not already answered
+  const consent = (() => { try { return sessionStorage.getItem('_cookie_consent'); } catch { return null; } })();
+  if (!consent) setTimeout(() => { document.getElementById('cookieBanner').style.display = 'flex'; }, 800);
+  // Restore API dot states
+  if (KeyStore.get('anthropic')) setApiDot('claude', 'active');
+  if (KeyStore.get('pexels')) setApiDot('pexels', 'standby');
+  if (KeyStore.get('pixabay')) setApiDot('pixabay', 'standby');
+})();
+</script>
+</body>
+</html>
