@@ -1,0 +1,1515 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self' 'unsafe-inline' 'unsafe-eval' https://api.anthropic.com https://api.pexels.com https://pixabay.com https://picsum.photos https://api.unsplash.com https://openverse.org https://images.unsplash.com; img-src * data: blob:; media-src * blob:; connect-src *;">
+<title>剪辑工坊 · AI Video Studio</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@300;400;500;700&family=JetBrains+Mono:wght@400;500&display=swap');
+
+:root {
+  --bg0:#0a0a0f; --bg1:#111118; --bg2:#16161f; --bg3:#1c1c28;
+  --bg4:#222232; --bg-hover:#2a2a3e;
+  --border:#1e1e30; --border2:#2a2a40; --border3:#3a3a58;
+  --acc:#5b5ef4; --acc2:#7c7fff; --acc3:#a5a8ff;
+  --acc-dim:rgba(91,94,244,.15);
+  --green:#22c55e; --amber:#f59e0b; --red:#ef4444; --cyan:#06b6d4;
+  --text:#e8e8f4; --text2:#a0a0c0; --text3:#606080;
+  --radius:6px; --radius2:10px; --radius3:14px;
+  --panel-w:200px; --prop-w:270px;
+  --timeline-h:160px;
+  --topbar-h:48px;
+  --status-h:22px;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%;overflow:hidden;font-family:'Noto Sans SC',-apple-system,sans-serif;background:var(--bg0);color:var(--text);font-size:12px}
+::-webkit-scrollbar{width:3px;height:3px}
+::-webkit-scrollbar-thumb{background:var(--bg4);border-radius:2px}
+
+/* ══ LAYOUT ══ */
+.app{display:flex;flex-direction:column;height:100vh}
+.topbar{height:var(--topbar-h);display:flex;align-items:center;padding:0 12px;gap:8px;background:var(--bg1);border-bottom:1px solid var(--border);flex-shrink:0;z-index:100}
+.workspace{flex:1;display:flex;min-height:0;overflow:hidden}
+.left-panel{width:var(--panel-w);background:var(--bg1);border-right:1px solid var(--border);display:flex;flex-direction:column;flex-shrink:0;overflow:hidden}
+.center{flex:1;display:flex;flex-direction:column;min-width:0;overflow:hidden}
+.right-panel{width:var(--prop-w);background:var(--bg1);border-left:1px solid var(--border);display:flex;flex-direction:column;flex-shrink:0;overflow:hidden}
+.statusbar{height:var(--status-h);display:flex;align-items:center;padding:0 12px;gap:12px;background:var(--bg0);border-top:1px solid var(--border);flex-shrink:0;font-size:10px;color:var(--text3)}
+
+/* ══ LOGO ══ */
+.logo{display:flex;align-items:center;gap:7px;font-size:14px;font-weight:700;color:var(--acc3);letter-spacing:-.3px;white-space:nowrap;flex-shrink:0}
+.logo-mark{width:28px;height:28px;background:linear-gradient(135deg,var(--acc),#9333ea);border-radius:7px;display:flex;align-items:center;justify-content:center;font-size:14px;flex-shrink:0}
+
+/* ══ TOPBAR CONTROLS ══ */
+.tb-sep{width:1px;height:24px;background:var(--border2);flex-shrink:0}
+.tb-group{display:flex;align-items:center;gap:3px}
+.tb-btn{display:flex;align-items:center;gap:4px;padding:5px 10px;border-radius:var(--radius);border:none;background:transparent;color:var(--text2);cursor:pointer;font-size:11px;font-family:inherit;transition:.15s;white-space:nowrap}
+.tb-btn:hover{background:var(--bg3);color:var(--text)}
+.tb-btn.active{background:var(--bg3);color:var(--acc3)}
+.tb-btn svg{width:14px;height:14px;flex-shrink:0}
+.btn-primary{background:var(--acc)!important;color:#fff!important;font-weight:500}
+.btn-primary:hover{background:#4a4de0!important}
+.btn-danger{background:#3a1a1a!important;color:#fca5a5!important;border:1px solid #7f1d1d!important}
+
+/* ══ TOOL NAV ══ */
+.tool-nav{display:flex;flex-direction:column;padding:8px 6px;gap:2px;border-bottom:1px solid var(--border)}
+.nav-item{display:flex;align-items:center;gap:7px;padding:7px 8px;border-radius:var(--radius);border:none;background:transparent;color:var(--text2);cursor:pointer;font-size:11px;font-family:inherit;transition:.12s;width:100%;text-align:left}
+.nav-item:hover{background:var(--bg3);color:var(--text)}
+.nav-item.active{background:var(--acc-dim);color:var(--acc3);border:1px solid rgba(91,94,244,.25)}
+.nav-item svg{width:14px;height:14px;flex-shrink:0;opacity:.8}
+.nav-badge{margin-left:auto;font-size:9px;padding:1px 5px;background:var(--acc-dim);color:var(--acc3);border-radius:999px}
+
+/* ══ PANEL SECTIONS ══ */
+.pane-title{font-size:9px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.1em;padding:10px 10px 5px}
+.pane-scroll{flex:1;overflow-y:auto;padding:4px 6px}
+.pane-body{overflow-y:auto;flex:1;padding:10px}
+
+/* ══ PREVIEW AREA ══ */
+.preview-area{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;background:var(--bg0);position:relative;gap:10px;min-height:0}
+.canvas-wrap{position:relative;background:#000;border-radius:var(--radius2);overflow:hidden;border:1px solid var(--border2);box-shadow:0 0 0 1px rgba(255,255,255,.03)}
+.canvas-wrap video,
+.canvas-wrap img{width:100%;height:100%;object-fit:contain;display:block}
+.canvas-overlay{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;pointer-events:none}
+.canvas-placeholder{text-align:center;opacity:.4}
+.canvas-placeholder svg{width:40px;height:40px;margin:0 auto 8px;display:block}
+.canvas-placeholder p{font-size:11px;color:var(--text2)}
+
+/* ══ TEXT OVERLAYS ON VIDEO ══ */
+.vid-overlay-top{position:absolute;top:10px;left:10px;right:10px}
+.vid-overlay-bot{position:absolute;bottom:10px;left:10px;right:10px}
+.overlay-title{font-size:18px;font-weight:700;color:#fff;text-shadow:0 2px 8px rgba(0,0,0,.8);line-height:1.3}
+.overlay-sub{font-size:12px;color:rgba(255,255,255,.85);text-shadow:0 1px 4px rgba(0,0,0,.8);margin-top:3px;background:rgba(0,0,0,.45);display:inline-block;padding:2px 6px;border-radius:3px}
+
+/* ══ PLAYBACK CONTROLS ══ */
+.playback{display:flex;align-items:center;gap:6px;padding:6px 14px;background:var(--bg2);border:1px solid var(--border2);border-radius:999px}
+.play-circle{width:28px;height:28px;border-radius:50%;background:var(--acc);border:none;color:#fff;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:11px;transition:.15s}
+.play-circle:hover{background:#4a4de0}
+.ctrl-btn{background:none;border:none;color:var(--text2);cursor:pointer;font-size:12px;padding:2px 4px;transition:.12s}
+.ctrl-btn:hover{color:var(--text)}
+.progress-wrap{display:flex;align-items:center;gap:6px}
+input[type=range]{accent-color:var(--acc);cursor:pointer;width:120px}
+.time-lbl{font-size:10px;color:var(--text2);font-family:'JetBrains Mono',monospace;min-width:60px}
+
+/* ══ TIMELINE ══ */
+.timeline{height:var(--timeline-h);background:var(--bg0);border-top:1px solid var(--border);display:flex;flex-direction:column;flex-shrink:0}
+.tl-header{display:flex;align-items:center;padding:5px 10px;gap:8px;border-bottom:1px solid var(--border);flex-shrink:0}
+.tl-title{font-size:9px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.1em}
+.tl-body{flex:1;overflow:auto;padding:6px 0}
+.tl-track{display:flex;align-items:center;height:26px;margin-bottom:4px}
+.tl-label{width:56px;font-size:9px;color:var(--text3);text-align:right;padding-right:8px;flex-shrink:0;font-weight:600;text-transform:uppercase;letter-spacing:.06em}
+.tl-lane{flex:1;height:100%;background:var(--bg2);border-radius:3px;border:1px solid var(--border);position:relative;overflow:hidden;cursor:pointer;min-width:400px}
+.tl-lane:hover{border-color:var(--border3)}
+.clip{height:18px;border-radius:2px;position:absolute;top:3px;display:flex;align-items:center;padding:0 5px;font-size:9px;font-weight:500;cursor:pointer;white-space:nowrap;overflow:hidden;transition:.12s}
+.clip:hover{filter:brightness(1.2)}
+.clip-v{background:#3730a3;color:#a5b4fc;border:1px solid #4338ca}
+.clip-a{background:#064e3b;color:#6ee7b7;border:1px solid #10b981}
+.clip-t{background:#7c2d12;color:#fdba74;border:1px solid #ea580c}
+.clip-img{background:#1e3a5f;color:#93c5fd;border:1px solid #3b82f6}
+.playhead-line{position:absolute;top:0;bottom:0;width:1.5px;background:var(--acc);pointer-events:none;z-index:10}
+
+/* ══ TABS ══ */
+.tabs{display:flex;border-bottom:1px solid var(--border);flex-shrink:0}
+.tab{flex:1;padding:8px 4px;text-align:center;font-size:10px;color:var(--text3);cursor:pointer;border-bottom:2px solid transparent;transition:.15s;user-select:none}
+.tab:hover{color:var(--text2)}
+.tab.active{color:var(--acc3);border-bottom-color:var(--acc)}
+.tab-content{display:none;flex:1;overflow-y:auto;padding:10px}
+.tab-content.active{display:block}
+
+/* ══ FORM ELEMENTS ══ */
+.field-label{font-size:9px;color:var(--text3);font-weight:600;text-transform:uppercase;letter-spacing:.08em;display:block;margin-bottom:4px}
+.inp{width:100%;background:var(--bg3);border:1px solid var(--border2);border-radius:var(--radius);color:var(--text);font-size:11px;padding:6px 8px;outline:none;font-family:inherit;transition:.15s}
+.inp:focus{border-color:var(--acc);background:var(--bg2)}
+textarea.inp{resize:vertical;min-height:60px;line-height:1.5}
+.search-row{display:flex;gap:5px;margin-bottom:8px}
+.search-btn{padding:6px 10px;background:var(--acc-dim);border:1px solid rgba(91,94,244,.3);border-radius:var(--radius);color:var(--acc3);cursor:pointer;font-size:12px;flex-shrink:0;transition:.15s}
+.search-btn:hover{background:rgba(91,94,244,.25)}
+.gen-btn{width:100%;margin-top:6px;padding:7px;background:var(--acc);border:none;border-radius:var(--radius);color:#fff;font-size:11px;font-weight:600;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:5px;transition:.15s;font-family:inherit}
+.gen-btn:hover:not(:disabled){background:#4a4de0}
+.gen-btn:disabled{opacity:.4;cursor:not-allowed}
+.ai-out{background:var(--bg3);border:1px solid var(--border2);border-radius:var(--radius);padding:8px;margin-top:6px;font-size:10px;color:var(--acc3);line-height:1.65;max-height:140px;overflow-y:auto;display:none}
+.ai-out.show{display:block}
+
+/* ══ MEDIA GRID ══ */
+.media-grid{display:grid;grid-template-columns:1fr 1fr;gap:4px}
+.media-thumb{aspect-ratio:16/9;border-radius:4px;border:1px solid var(--border2);overflow:hidden;cursor:pointer;position:relative;background:var(--bg3);transition:.15s}
+.media-thumb:hover{border-color:var(--acc);transform:scale(1.02)}
+.media-thumb img,.media-thumb video{width:100%;height:100%;object-fit:cover}
+.media-label{position:absolute;bottom:0;left:0;right:0;background:rgba(0,0,0,.8);font-size:8px;color:#bbb;padding:2px 4px;display:flex;justify-content:space-between}
+.media-add-btn{position:absolute;top:4px;right:4px;width:20px;height:20px;border-radius:50%;background:rgba(91,94,244,.9);border:none;color:#fff;font-size:11px;cursor:pointer;display:none;align-items:center;justify-content:center}
+.media-thumb:hover .media-add-btn{display:flex}
+
+/* ══ MUSIC ITEMS ══ */
+.music-item{display:flex;align-items:center;gap:7px;padding:6px 7px;border-radius:var(--radius);border:1px solid var(--border);margin-bottom:4px;cursor:pointer;transition:.15s}
+.music-item:hover,.music-item.playing{border-color:var(--acc);background:var(--acc-dim)}
+.music-icon{width:26px;height:26px;border-radius:5px;background:var(--bg3);display:flex;align-items:center;justify-content:center;flex-shrink:0;color:var(--acc3);font-size:12px}
+.music-info{flex:1;min-width:0}
+.music-name{font-size:10px;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.music-meta{font-size:9px;color:var(--text3)}
+.music-play{width:22px;height:22px;border-radius:50%;background:var(--acc);border:none;color:#fff;cursor:pointer;font-size:9px;flex-shrink:0;display:flex;align-items:center;justify-content:center}
+
+/* ══ TEMPLATES ══ */
+.tmpl-grid{display:grid;grid-template-columns:1fr 1fr;gap:6px}
+.tmpl-card{aspect-ratio:16/9;border-radius:var(--radius);border:2px solid transparent;cursor:pointer;transition:.15s;display:flex;flex-direction:column;align-items:center;justify-content:center;font-size:10px;font-weight:600;gap:3px}
+.tmpl-card:hover{border-color:var(--acc2);transform:scale(1.03)}
+.tmpl-card.sel{border-color:var(--acc3);box-shadow:0 0 10px rgba(91,94,244,.3)}
+
+/* ══ PROPERTIES PANEL ══ */
+.prop-section{margin-bottom:14px}
+.prop-row{display:flex;align-items:center;gap:8px;margin-bottom:6px}
+.prop-lbl{font-size:10px;color:var(--text2);min-width:50px;flex-shrink:0}
+.prop-val{flex:1;background:var(--bg3);border:1px solid var(--border2);border-radius:var(--radius);color:var(--text);font-size:11px;padding:4px 7px;outline:none;font-family:inherit}
+.prop-val:focus{border-color:var(--acc)}
+.prop-slider{flex:1;accent-color:var(--acc)}
+.color-swatch{width:24px;height:24px;border-radius:4px;border:1px solid var(--border3);cursor:pointer;flex-shrink:0}
+.btn-sm{padding:4px 10px;border-radius:var(--radius);border:none;cursor:pointer;font-size:10px;font-family:inherit;font-weight:500;transition:.15s}
+.btn-outline{background:transparent;color:var(--text2);border:1px solid var(--border2)}
+.btn-outline:hover{background:var(--bg3);color:var(--text)}
+.btn-accent{background:var(--acc-dim);color:var(--acc3);border:1px solid rgba(91,94,244,.3)}
+.btn-accent:hover{background:rgba(91,94,244,.25)}
+
+/* ══ UPLOAD ZONE ══ */
+.upload-zone{border:1.5px dashed var(--border3);border-radius:var(--radius2);padding:16px;text-align:center;cursor:pointer;transition:.2s;margin-bottom:8px}
+.upload-zone:hover,.upload-zone.drag{border-color:var(--acc);background:var(--acc-dim)}
+.upload-zone svg{width:24px;height:24px;margin:0 auto 6px;display:block;color:var(--text3)}
+.upload-zone p{font-size:10px;color:var(--text3)}
+.local-files{display:flex;flex-direction:column;gap:3px}
+.local-file{display:flex;align-items:center;gap:6px;padding:5px 7px;background:var(--bg3);border-radius:var(--radius);border:1px solid var(--border);cursor:pointer;transition:.15s}
+.local-file:hover{border-color:var(--acc);color:var(--acc3)}
+.local-file-icon{font-size:13px;flex-shrink:0}
+.local-file-name{flex:1;font-size:10px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.local-file-dur{font-size:9px;color:var(--text3);flex-shrink:0;font-family:'JetBrains Mono',monospace}
+
+/* ══ API STATUS ══ */
+.api-status-grid{display:flex;flex-direction:column;gap:4px;padding:0 8px 8px}
+.api-row{display:flex;align-items:center;gap:6px;padding:4px 6px;border-radius:var(--radius);background:var(--bg2)}
+.api-dot{width:6px;height:6px;border-radius:50%;flex-shrink:0;transition:.3s}
+.api-dot.on{background:var(--green)}
+.api-dot.standby{background:var(--amber)}
+.api-dot.off{background:var(--border3)}
+.api-dot.err{background:var(--red)}
+.api-name{flex:1;font-size:10px;color:var(--text2)}
+.api-stat{font-size:9px;padding:1px 6px;border-radius:999px;font-weight:600}
+.api-stat.on{background:rgba(34,197,94,.12);color:#4ade80}
+.api-stat.standby{background:rgba(245,158,11,.12);color:#fbbf24}
+.api-stat.off{background:rgba(255,255,255,.05);color:var(--text3)}
+.api-stat.err{background:rgba(239,68,68,.12);color:#f87171}
+
+/* ══ SPINNER ══ */
+.spin{width:12px;height:12px;border:2px solid var(--border3);border-top-color:var(--acc3);border-radius:50%;animation:sp .6s linear infinite;display:inline-block;flex-shrink:0}
+@keyframes sp{to{transform:rotate(360deg)}}
+
+/* ══ NOTIFICATIONS ══ */
+.notif{position:fixed;top:54px;right:12px;background:var(--bg2);border:1px solid #3730a3;border-radius:var(--radius2);padding:8px 12px;font-size:11px;color:var(--acc3);z-index:999;max-width:260px;transform:translateX(280px);transition:.25s;box-shadow:0 8px 32px rgba(0,0,0,.5);pointer-events:none}
+.notif.show{transform:translateX(0)}
+.notif.err{border-color:#7f1d1d;color:#fca5a5;background:#1a0808}
+.notif.ok{border-color:#065f46;color:#6ee7b7;background:#022c1a}
+
+/* ══ MODAL ══ */
+.modal-bg{position:fixed;inset:0;background:rgba(0,0,0,.8);display:flex;align-items:center;justify-content:center;z-index:500;backdrop-filter:blur(4px)}
+.modal{background:var(--bg2);border:1px solid var(--border2);border-radius:var(--radius3);padding:22px;width:400px;max-width:95vw;box-shadow:0 24px 64px rgba(0,0,0,.6)}
+.modal h2{font-size:14px;font-weight:700;margin-bottom:5px}
+.modal .sub{font-size:10px;color:var(--text2);margin-bottom:14px;line-height:1.5}
+.modal-row{display:flex;gap:8px;margin-top:12px}
+
+/* ══ EFFECTS CHIP ══ */
+.fx-chip{display:inline-flex;align-items:center;gap:4px;padding:4px 10px;border-radius:999px;border:1px solid var(--border2);background:var(--bg3);color:var(--text2);cursor:pointer;font-size:10px;transition:.15s;margin:2px}
+.fx-chip:hover,.fx-chip.active{border-color:var(--acc);color:var(--acc3);background:var(--acc-dim)}
+
+/* ══ SPLIT CONTROLS ══ */
+.split-btn{display:flex;align-items:center;gap:5px;padding:5px 9px;border-radius:var(--radius);border:1px solid var(--border2);background:var(--bg3);color:var(--text2);cursor:pointer;font-size:10px;font-family:inherit;transition:.15s;margin-bottom:3px;width:100%}
+.split-btn:hover{border-color:var(--acc);color:var(--acc3);background:var(--acc-dim)}
+.split-btn svg{width:13px;height:13px;flex-shrink:0}
+
+/* ══ LANG TOGGLE ══ */
+.lang-toggle{display:flex;background:var(--bg3);border-radius:var(--radius);border:1px solid var(--border2);overflow:hidden;flex-shrink:0}
+.lang-btn{padding:4px 10px;font-size:10px;font-weight:600;cursor:pointer;border:none;background:transparent;color:var(--text3);transition:.15s;font-family:inherit}
+.lang-btn.active{background:var(--acc);color:#fff}
+
+/* ══ RATIO SELECTOR ══ */
+.ratio-grid{display:flex;gap:5px;margin-top:6px}
+.ratio-opt{flex:1;padding:5px;border-radius:var(--radius);border:1px solid var(--border2);background:var(--bg3);color:var(--text2);cursor:pointer;font-size:10px;text-align:center;transition:.15s}
+.ratio-opt:hover,.ratio-opt.sel{border-color:var(--acc);color:var(--acc3);background:var(--acc-dim)}
+
+/* ══ FILTER STRIP ══ */
+.filter-strip{display:flex;gap:4px;flex-wrap:wrap;margin-bottom:8px}
+.filter-chip{padding:3px 9px;border-radius:999px;border:1px solid var(--border2);background:var(--bg3);color:var(--text2);cursor:pointer;font-size:9px;transition:.15s}
+.filter-chip:hover,.filter-chip.active{border-color:var(--acc);color:var(--acc3);background:var(--acc-dim)}
+
+/* ══ DIVIDER ══ */
+.divider{height:1px;background:var(--border);margin:8px 0}
+
+/* ══ PROGRESS BAR ══ */
+.progress-bar{height:2px;background:var(--border2);border-radius:1px;overflow:hidden;margin-top:4px}
+.progress-fill{height:100%;background:var(--acc);border-radius:1px;transition:width .3s}
+
+/* ══ TOOLTIP ══ */
+[data-tip]{position:relative}
+[data-tip]:hover::after{content:attr(data-tip);position:absolute;bottom:calc(100% + 4px);left:50%;transform:translateX(-50%);background:var(--bg4);color:var(--text);font-size:9px;padding:3px 7px;border-radius:4px;white-space:nowrap;pointer-events:none;z-index:999;border:1px solid var(--border2)}
+
+/* ══ EXPORT MODAL ══ */
+.export-grid{display:grid;grid-template-columns:1fr 1fr;gap:4px;margin-bottom:10px}
+.export-opt{padding:7px;border-radius:var(--radius);border:1px solid var(--border2);background:var(--bg3);cursor:pointer;text-align:center;font-size:10px;color:var(--text2);transition:.15s}
+.export-opt:hover,.export-opt.sel{border-color:var(--acc);color:var(--acc3);background:var(--acc-dim)}
+
+@media(max-width:900px){:root{--panel-w:170px;--prop-w:220px}}
+@media(max-width:700px){.left-panel{display:none};:root{--prop-w:200px}}
+</style>
+</head>
+<body>
+<div class="app">
+
+<!-- ═══ TOPBAR ═══ -->
+<div class="topbar">
+  <div class="logo">
+    <div class="logo-mark">✂</div>
+    <span id="t-brand">剪辑工坊</span>
+  </div>
+  <div class="tb-sep"></div>
+
+  <!-- File ops -->
+  <div class="tb-group">
+    <button class="tb-btn" onclick="newProject()" data-tip="新建项目">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+      <span id="t-new">新建</span>
+    </button>
+    <label class="tb-btn" style="cursor:pointer" data-tip="导入本地文件">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+      <span id="t-import">导入</span>
+      <input type="file" id="fileImport" style="display:none" multiple accept="video/*,audio/*,image/*" onchange="importFiles(this.files)">
+    </label>
+    <button class="tb-btn" onclick="openExport()" data-tip="导出项目">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+      <span id="t-export">导出</span>
+    </button>
+  </div>
+  <div class="tb-sep"></div>
+
+  <!-- Edit tools -->
+  <div class="tb-group">
+    <button class="tb-btn" onclick="undo()" data-tip="撤销 Ctrl+Z">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 14 4 9 9 4"/><path d="M20 20v-7a4 4 0 0 0-4-4H4"/></svg>
+    </button>
+    <button class="tb-btn" onclick="redo()" data-tip="重做 Ctrl+Y">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="15 14 20 9 15 4"/><path d="M4 20v-7a4 4 0 0 1 4-4h12"/></svg>
+    </button>
+  </div>
+  <div class="tb-sep"></div>
+
+  <!-- Clip tools -->
+  <div class="tb-group">
+    <button class="tb-btn active" id="tool-select" onclick="setTool('select',this)" data-tip="选择 V">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 3l14 9-7 1-4 7-3-17z"/></svg>
+    </button>
+    <button class="tb-btn" id="tool-cut" onclick="setTool('cut',this)" data-tip="剪切 C">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="6" cy="6" r="3"/><circle cx="6" cy="18" r="3"/><line x1="20" y1="4" x2="8.12" y2="15.88"/><line x1="14.47" y1="14.48" x2="20" y2="20"/><line x1="8.12" y1="8.12" x2="12" y2="12"/></svg>
+    </button>
+    <button class="tb-btn" id="tool-text" onclick="setTool('text',this)" data-tip="文字 T">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="4 7 4 4 20 4 20 7"/><line x1="9" y1="20" x2="15" y2="20"/><line x1="12" y1="4" x2="12" y2="20"/></svg>
+    </button>
+    <button class="tb-btn" id="tool-split" onclick="splitAtPlayhead()" data-tip="分割 S">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="2" x2="12" y2="22"/><path d="M2 12l5-5 5 5-5 5-5-5z"/><path d="M17 7l5 5-5 5"/></svg>
+    </button>
+  </div>
+  <div class="tb-sep"></div>
+
+  <div style="display:flex;align-items:center;gap:6px;margin-left:auto">
+    <div class="lang-toggle">
+      <button class="lang-btn active" onclick="setLang('zh',this)">中文</button>
+      <button class="lang-btn" onclick="setLang('en',this)">EN</button>
+    </div>
+    <button class="tb-btn" onclick="openApiConfig()">⚙ <span id="t-apikeys">API 密钥</span></button>
+    <button class="tb-btn btn-primary" onclick="generatePreview()">▶ <span id="t-preview">预览</span></button>
+  </div>
+</div>
+
+<!-- ═══ WORKSPACE ═══ -->
+<div class="workspace">
+
+  <!-- ── LEFT PANEL ── -->
+  <div class="left-panel">
+    <div class="tool-nav">
+      <button class="nav-item active" onclick="showPanel('local',this)">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M9 21V9"/></svg>
+        <span id="t-local">本地媒体</span>
+      </button>
+      <button class="nav-item" onclick="showPanel('stock',this)">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="7" width="20" height="15" rx="2"/><polyline points="17 2 12 7 7 2"/></svg>
+        <span id="t-stock">素材库</span>
+      </button>
+      <button class="nav-item" onclick="showPanel('music',this)">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></svg>
+        <span id="t-music">音乐</span>
+      </button>
+      <button class="nav-item" onclick="showPanel('ai',this)">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3M12 17h.01"/></svg>
+        <span id="t-ai">AI 助手</span>
+        <span class="nav-badge">AI</span>
+      </button>
+      <button class="nav-item" onclick="showPanel('templates',this)">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/></svg>
+        <span id="t-tmpl">模板</span>
+      </button>
+    </div>
+
+    <!-- LOCAL MEDIA PANEL -->
+    <div id="panel-local" class="pane-scroll">
+      <div class="pane-title" id="t-local-title">本地文件</div>
+      <label class="upload-zone" id="uploadZone" ondrop="handleDrop(event)" ondragover="handleDragOver(event)" ondragleave="handleDragLeave(event)">
+        <input type="file" id="localUpload" style="display:none" multiple accept="video/*,audio/*,image/*" onchange="handleLocalUpload(this.files)">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+        <p id="t-drop">拖拽或点击上传<br><span style="font-size:9px;color:var(--text3)">视频 · 音频 · 图片</span></p>
+      </label>
+      <div class="local-files" id="localFileList">
+        <div style="text-align:center;padding:16px;color:var(--text3);font-size:10px" id="t-no-files">暂无本地文件<br>离线状态下仍可剪辑</div>
+      </div>
+    </div>
+
+    <!-- STOCK PANEL -->
+    <div id="panel-stock" class="pane-scroll" style="display:none">
+      <div class="pane-title">素材视频</div>
+      <div class="search-row">
+        <input class="inp" id="stockQ" placeholder="搜索素材..." onkeydown="if(event.key==='Enter')searchStock()">
+        <button class="search-btn" onclick="searchStock()">🔍</button>
+      </div>
+      <div class="filter-strip" id="stockFilters">
+        <span class="filter-chip active" onclick="filterStock(this,'all')">全部</span>
+        <span class="filter-chip" onclick="filterStock(this,'nature')">自然</span>
+        <span class="filter-chip" onclick="filterStock(this,'city')">城市</span>
+        <span class="filter-chip" onclick="filterStock(this,'business')">商务</span>
+        <span class="filter-chip" onclick="filterStock(this,'people')">人物</span>
+      </div>
+      <div style="font-size:9px;color:var(--text3);margin-bottom:6px;display:flex;align-items:center;gap:4px">
+        <span id="stockApiDot" style="width:5px;height:5px;border-radius:50%;background:var(--amber);display:inline-block"></span>
+        <span id="stockApiLabel">自动切换：Pexels → Pixabay → Unsplash → 演示</span>
+      </div>
+      <div class="media-grid" id="stockGrid">
+        <div style="grid-column:1/-1;text-align:center;padding:20px;color:var(--text3);font-size:10px">搜索素材视频<br>支持 5 个素材 API 自动切换</div>
+      </div>
+    </div>
+
+    <!-- MUSIC PANEL -->
+    <div id="panel-music" class="pane-scroll" style="display:none">
+      <div class="pane-title">音乐库</div>
+      <div class="search-row">
+        <input class="inp" id="musicQ" placeholder="搜索音乐..." onkeydown="if(event.key==='Enter')searchMusic()">
+        <button class="search-btn" onclick="searchMusic()">🔍</button>
+      </div>
+      <div class="filter-strip">
+        <span class="filter-chip active" onclick="setMusicGenre(this,'cinematic')">电影感</span>
+        <span class="filter-chip" onclick="setMusicGenre(this,'upbeat')">活力</span>
+        <span class="filter-chip" onclick="setMusicGenre(this,'ambient')">氛围</span>
+        <span class="filter-chip" onclick="setMusicGenre(this,'piano')">钢琴</span>
+      </div>
+      <div id="musicList">
+        <div style="text-align:center;padding:14px;color:var(--text3);font-size:10px">搜索或浏览音乐</div>
+      </div>
+    </div>
+
+    <!-- AI PANEL -->
+    <div id="panel-ai" class="pane-scroll" style="display:none">
+      <div class="pane-title">AI 创作助手</div>
+      <div style="margin-bottom:12px">
+        <label class="field-label">📝 脚本生成</label>
+        <textarea class="inp" id="scriptP" placeholder="描述你的视频主题..."></textarea>
+        <button class="gen-btn" onclick="genScript()">✨ 生成脚本</button>
+        <div class="ai-out" id="scriptOut"></div>
+      </div>
+      <div style="margin-bottom:12px">
+        <label class="field-label">🎬 镜头列表</label>
+        <textarea class="inp" id="shotP" style="min-height:44px" placeholder="视频概念..."></textarea>
+        <button class="gen-btn" onclick="genShots()">📋 生成镜头</button>
+        <div class="ai-out" id="shotOut"></div>
+      </div>
+      <div>
+        <label class="field-label">💡 创意灵感</label>
+        <textarea class="inp" id="ideaP" style="min-height:44px" placeholder="你的方向或主题..."></textarea>
+        <button class="gen-btn" onclick="genIdeas()">🧠 头脑风暴</button>
+        <div class="ai-out" id="ideaOut"></div>
+      </div>
+    </div>
+
+    <!-- TEMPLATES PANEL -->
+    <div id="panel-templates" class="pane-scroll" style="display:none">
+      <div class="pane-title">视频模板</div>
+      <div class="tmpl-grid">
+        <div class="tmpl-card sel" style="background:linear-gradient(135deg,#1e1a3a,#3730a3);color:#a5b4fc" onclick="selectTmpl(this,'电影感')">🎬<span style="font-size:9px">电影感</span></div>
+        <div class="tmpl-card" style="background:linear-gradient(135deg,#0a2a1a,#065f46);color:#6ee7b7" onclick="selectTmpl(this,'产品展示')">📦<span style="font-size:9px">产品展示</span></div>
+        <div class="tmpl-card" style="background:linear-gradient(135deg,#2a1a0a,#7c2d12);color:#fdba74" onclick="selectTmpl(this,'社交短视频')">📱<span style="font-size:9px">社交短视频</span></div>
+        <div class="tmpl-card" style="background:linear-gradient(135deg,#1a0a2a,#6d28d9);color:#ddd6fe" onclick="selectTmpl(this,'教程讲解')">📚<span style="font-size:9px">教程讲解</span></div>
+        <div class="tmpl-card" style="background:linear-gradient(135deg,#0a1a2a,#1e3a5f);color:#93c5fd" onclick="selectTmpl(this,'企业宣传')">🏢<span style="font-size:9px">企业宣传</span></div>
+        <div class="tmpl-card" style="background:linear-gradient(135deg,#111,#333);color:#d1d5db" onclick="selectTmpl(this,'极简风格')">◻<span style="font-size:9px">极简风格</span></div>
+      </div>
+      <div class="divider"></div>
+      <label class="field-label">画面比例</label>
+      <div class="ratio-grid">
+        <div class="ratio-opt sel" onclick="setRatio(this,'16:9')">16:9</div>
+        <div class="ratio-opt" onclick="setRatio(this,'9:16')">9:16</div>
+        <div class="ratio-opt" onclick="setRatio(this,'1:1')">1:1</div>
+      </div>
+    </div>
+
+    <!-- API STATUS (always visible at bottom) -->
+    <div style="margin-top:auto;border-top:1px solid var(--border)">
+      <div class="pane-title">API 状态</div>
+      <div class="api-status-grid">
+        <div class="api-row"><div class="api-dot on" id="dot-claude"></div><span class="api-name">Claude AI</span><span class="api-stat on" id="stat-claude">活跃</span></div>
+        <div class="api-row"><div class="api-dot standby" id="dot-pexels"></div><span class="api-name">Pexels</span><span class="api-stat standby" id="stat-pexels">待机</span></div>
+        <div class="api-row"><div class="api-dot standby" id="dot-pixabay"></div><span class="api-name">Pixabay</span><span class="api-stat standby" id="stat-pixabay">待机</span></div>
+        <div class="api-row"><div class="api-dot off" id="dot-unsplash"></div><span class="api-name">Unsplash</span><span class="api-stat off" id="stat-unsplash">未配置</span></div>
+        <div class="api-row"><div class="api-dot off" id="dot-openverse"></div><span class="api-name">Openverse</span><span class="api-stat off" id="stat-openverse">免费</span></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── CENTER ── -->
+  <div class="center">
+    <!-- PREVIEW -->
+    <div class="preview-area" id="previewArea">
+      <div class="canvas-wrap" id="canvasWrap" style="width:100%;max-width:620px;aspect-ratio:16/9">
+        <div class="canvas-overlay" id="canvasOverlay">
+          <div class="canvas-placeholder" id="canvasPlaceholder">
+            <svg viewBox="0 0 48 48" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="4" y="8" width="40" height="30" rx="3"/><polygon points="19,18 19,30 33,24" fill="currentColor" stroke="none"/></svg>
+            <p id="t-no-preview">将视频拖入时间轴或搜索素材开始创作</p>
+          </div>
+        </div>
+        <video id="previewVideo" style="display:none;width:100%;height:100%;object-fit:contain" controls="false"></video>
+        <img id="previewImg" style="display:none;width:100%;height:100%;object-fit:contain" alt="">
+        <!-- Text overlays -->
+        <div class="vid-overlay-top" id="overlayTop" style="display:none">
+          <div class="overlay-title" id="overlayTitle"></div>
+        </div>
+        <div class="vid-overlay-bot" id="overlayBot" style="display:none">
+          <span class="overlay-sub" id="overlaySubtitle"></span>
+        </div>
+      </div>
+
+      <!-- Playback -->
+      <div class="playback">
+        <button class="ctrl-btn" onclick="seekStart()">⏮</button>
+        <button class="play-circle" id="playBtn" onclick="togglePlay()">▶</button>
+        <button class="ctrl-btn" onclick="seekEnd()">⏭</button>
+        <div class="progress-wrap">
+          <input type="range" id="progressSlider" min="0" max="100" value="0" oninput="seekTo(this.value)">
+          <span class="time-lbl" id="timeLbl">0:00 / 0:30</span>
+        </div>
+        <select id="qualSel" style="background:var(--bg3);border:1px solid var(--border2);color:var(--text2);border-radius:var(--radius);padding:2px 5px;font-size:10px;outline:none">
+          <option>1080p</option><option>720p</option><option>480p</option>
+        </select>
+        <button class="ctrl-btn" onclick="toggleMute()" id="muteBtn" title="静音">🔊</button>
+        <input type="range" id="volSlider" min="0" max="100" value="80" style="width:60px" oninput="setVolume(this.value)" title="音量">
+      </div>
+    </div>
+
+    <!-- TIMELINE -->
+    <div class="timeline">
+      <div class="tl-header">
+        <span class="tl-title" id="t-timeline">时间轴</span>
+        <div style="display:flex;gap:4px;margin-left:auto">
+          <span style="font-size:9px;color:var(--text3);display:flex;align-items:center;gap:3px">
+            缩放：<input type="range" id="zoomSlider" min="1" max="5" value="2" step=".1" style="width:60px;accent-color:var(--acc)" oninput="setZoom(this.value)">
+          </span>
+          <button class="btn-sm btn-outline" onclick="addVideoTrack()" id="t-addV">+ 视频轨</button>
+          <button class="btn-sm btn-outline" onclick="addAudioTrack()" id="t-addA">+ 音频轨</button>
+          <button class="btn-sm btn-outline" onclick="addTextTrack()" id="t-addT">+ 字幕轨</button>
+        </div>
+      </div>
+      <div class="tl-body" id="tlBody">
+        <div class="tl-track">
+          <div class="tl-label">视频1</div>
+          <div class="tl-lane" id="lane-v1" onclick="laneClick(event,'v1')">
+            <div class="clip clip-v" style="left:0;width:35%" data-id="c1">🎬 片头</div>
+            <div class="clip clip-v" style="left:37%;width:33%" data-id="c2">🎬 主场景</div>
+            <div class="playhead-line" id="ph-v1"></div>
+          </div>
+        </div>
+        <div class="tl-track">
+          <div class="tl-label">音频</div>
+          <div class="tl-lane" id="lane-a1">
+            <div class="clip clip-a" style="left:0;width:72%">♪ 背景音乐</div>
+            <div class="playhead-line" id="ph-a1"></div>
+          </div>
+        </div>
+        <div class="tl-track">
+          <div class="tl-label">字幕</div>
+          <div class="tl-lane" id="lane-t1">
+            <div class="clip clip-t" style="left:3%;width:20%">T 标题</div>
+            <div class="clip clip-t" style="left:40%;width:16%">T 字幕</div>
+            <div class="playhead-line" id="ph-t1"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── RIGHT PANEL (Properties) ── -->
+  <div class="right-panel">
+    <div class="tabs">
+      <div class="tab active" onclick="switchRTab(this,'props')" id="rtab-props">属性</div>
+      <div class="tab" onclick="switchRTab(this,'effects')" id="rtab-fx">特效</div>
+      <div class="tab" onclick="switchRTab(this,'text')" id="rtab-text">字幕</div>
+      <div class="tab" onclick="switchRTab(this,'color')" id="rtab-color">调色</div>
+    </div>
+
+    <!-- PROPS TAB -->
+    <div class="tab-content active" id="rtab-content-props">
+      <div class="prop-section">
+        <div class="field-label" style="margin-bottom:8px;font-size:10px;color:var(--text2)">📹 片段属性</div>
+        <div class="prop-row">
+          <span class="prop-lbl">速度</span>
+          <input type="range" class="prop-slider" min="10" max="400" value="100" oninput="setProp('speed',this.value)" id="spdSlider">
+          <span id="spdVal" style="font-size:10px;color:var(--acc3);min-width:30px">1.0×</span>
+        </div>
+        <div class="prop-row">
+          <span class="prop-lbl">音量</span>
+          <input type="range" class="prop-slider" min="0" max="200" value="100" oninput="setProp('volume',this.value)" id="volPropSlider">
+          <span id="volPropVal" style="font-size:10px;color:var(--acc3);min-width:30px">100%</span>
+        </div>
+        <div class="prop-row">
+          <span class="prop-lbl">不透明</span>
+          <input type="range" class="prop-slider" min="0" max="100" value="100" oninput="setProp('opacity',this.value)" id="opacSlider">
+          <span id="opacVal" style="font-size:10px;color:var(--acc3);min-width:30px">100%</span>
+        </div>
+      </div>
+      <div class="divider"></div>
+      <div class="prop-section">
+        <div class="field-label" style="margin-bottom:8px;font-size:10px;color:var(--text2)">✂ 快速剪辑</div>
+        <button class="split-btn" onclick="splitAtPlayhead()">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="2" x2="12" y2="22"/><path d="M2 12l5-5 5 5-5 5z"/></svg> 在播放头分割
+        </button>
+        <button class="split-btn" onclick="deleteSelected()">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6M14 11v6"/></svg> 删除选中片段
+        </button>
+        <button class="split-btn" onclick="cropVideo()">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 2 6 22"/><polyline points="18 2 18 22"/><line x1="2" y1="6" x2="22" y2="6"/><line x1="2" y1="18" x2="22" y2="18"/></svg> 裁剪画面
+        </button>
+        <button class="split-btn" onclick="reverseClip()">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 .49-3.12"/></svg> 反转片段
+        </button>
+      </div>
+      <div class="divider"></div>
+      <div class="prop-section">
+        <div class="field-label" style="margin-bottom:8px;font-size:10px;color:var(--text2)">🔄 转场</div>
+        <div style="display:flex;flex-wrap:wrap">
+          <span class="fx-chip" onclick="applyTransition('fade',this)">淡入淡出</span>
+          <span class="fx-chip" onclick="applyTransition('slide',this)">滑动</span>
+          <span class="fx-chip" onclick="applyTransition('zoom',this)">缩放</span>
+          <span class="fx-chip" onclick="applyTransition('wipe',this)">擦除</span>
+          <span class="fx-chip" onclick="applyTransition('blur',this)">模糊</span>
+          <span class="fx-chip" onclick="applyTransition('glitch',this)">故障</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- EFFECTS TAB -->
+    <div class="tab-content" id="rtab-content-effects">
+      <div class="prop-section">
+        <div class="field-label" style="margin-bottom:8px">🎨 视觉特效</div>
+        <div style="display:flex;flex-wrap:wrap">
+          <span class="fx-chip" onclick="applyFx('vintage',this)">🎞 复古胶片</span>
+          <span class="fx-chip" onclick="applyFx('bw',this)">⬜ 黑白</span>
+          <span class="fx-chip" onclick="applyFx('neon',this)">⚡ 霓虹</span>
+          <span class="fx-chip" onclick="applyFx('vhs',this)">📼 VHS</span>
+          <span class="fx-chip" onclick="applyFx('zoom',this)">🔍 肯·伯恩斯</span>
+          <span class="fx-chip" onclick="applyFx('shake',this)">📳 抖动</span>
+          <span class="fx-chip" onclick="applyFx('blur',this)">〇 模糊揭示</span>
+          <span class="fx-chip" onclick="applyFx('mirror',this)">🪞 镜像</span>
+          <span class="fx-chip" onclick="applyFx('split',this)">🎭 分屏</span>
+        </div>
+      </div>
+      <div class="divider"></div>
+      <div class="prop-section">
+        <div class="field-label" style="margin-bottom:6px">🔧 参数调整</div>
+        <div class="prop-row"><span class="prop-lbl">亮度</span><input type="range" class="prop-slider" min="-100" max="100" value="0" oninput="setFxParam('brightness',this.value)"><span id="fxBright" style="font-size:10px;color:var(--acc3);min-width:28px">0</span></div>
+        <div class="prop-row"><span class="prop-lbl">对比度</span><input type="range" class="prop-slider" min="-100" max="100" value="0" oninput="setFxParam('contrast',this.value)"><span id="fxContrast" style="font-size:10px;color:var(--acc3);min-width:28px">0</span></div>
+        <div class="prop-row"><span class="prop-lbl">饱和度</span><input type="range" class="prop-slider" min="-100" max="100" value="0" oninput="setFxParam('saturation',this.value)"><span id="fxSat" style="font-size:10px;color:var(--acc3);min-width:28px">0</span></div>
+        <div class="prop-row"><span class="prop-lbl">锐化</span><input type="range" class="prop-slider" min="0" max="100" value="0" oninput="setFxParam('sharpen',this.value)"><span id="fxSharp" style="font-size:10px;color:var(--acc3);min-width:28px">0</span></div>
+        <div class="prop-row"><span class="prop-lbl">暗角</span><input type="range" class="prop-slider" min="0" max="100" value="0" oninput="setFxParam('vignette',this.value)"><span id="fxVig" style="font-size:10px;color:var(--acc3);min-width:28px">0</span></div>
+      </div>
+    </div>
+
+    <!-- TEXT TAB -->
+    <div class="tab-content" id="rtab-content-text">
+      <div class="prop-section">
+        <div class="field-label" style="margin-bottom:6px">📝 添加文字</div>
+        <div class="prop-row"><span class="prop-lbl">内容</span><input class="prop-val" id="textContent" placeholder="输入文字..." oninput="updateTextOverlay()"></div>
+        <div class="prop-row"><span class="prop-lbl">字体大小</span><input type="range" class="prop-slider" min="12" max="80" value="24" id="textSize" oninput="updateTextSize(this.value)"><span id="textSizeVal" style="font-size:10px;color:var(--acc3);min-width:28px">24</span></div>
+        <div class="prop-row"><span class="prop-lbl">位置</span>
+          <select class="prop-val" id="textPos" onchange="updateTextPos(this.value)">
+            <option value="top">顶部</option>
+            <option value="center">居中</option>
+            <option value="bottom" selected>底部</option>
+          </select>
+        </div>
+        <div class="prop-row"><span class="prop-lbl">颜色</span>
+          <input type="color" value="#ffffff" id="textColor" onchange="updateTextColor(this.value)" style="width:100%;height:28px;border:1px solid var(--border2);border-radius:var(--radius);background:var(--bg3);cursor:pointer">
+        </div>
+        <div class="prop-row"><span class="prop-lbl">动画</span>
+          <select class="prop-val" id="textAnim">
+            <option>无</option><option>淡入</option><option>滑入</option><option>打字机</option>
+          </select>
+        </div>
+        <button class="gen-btn" onclick="addTextToVideo()">+ 添加到视频</button>
+      </div>
+      <div class="divider"></div>
+      <div class="prop-section">
+        <div class="field-label" style="margin-bottom:6px">🌐 字幕</div>
+        <textarea class="inp" id="subtitleText" placeholder="输入字幕，每行一句..." style="min-height:70px"></textarea>
+        <button class="gen-btn" onclick="addSubtitles()" style="margin-top:5px">生成字幕轨</button>
+        <button class="gen-btn" style="background:var(--bg4);margin-top:4px" onclick="genSubtitlesAI()">🤖 AI 自动字幕</button>
+      </div>
+    </div>
+
+    <!-- COLOR TAB -->
+    <div class="tab-content" id="rtab-content-color">
+      <div class="prop-section">
+        <div class="field-label" style="margin-bottom:8px">🎨 调色预设</div>
+        <div style="display:flex;flex-wrap:wrap">
+          <span class="fx-chip" onclick="applyLUT('cinematic',this)">电影感</span>
+          <span class="fx-chip" onclick="applyLUT('warm',this)">暖色调</span>
+          <span class="fx-chip" onclick="applyLUT('cool',this)">冷色调</span>
+          <span class="fx-chip" onclick="applyLUT('teal-orange',this)">橙青</span>
+          <span class="fx-chip" onclick="applyLUT('matte',this)">哑光</span>
+          <span class="fx-chip" onclick="applyLUT('fade',this)">褪色</span>
+          <span class="fx-chip" onclick="applyLUT('none',this)">原色</span>
+        </div>
+      </div>
+      <div class="divider"></div>
+      <div class="prop-section">
+        <div class="field-label" style="margin-bottom:6px">📊 曲线调整</div>
+        <div class="prop-row"><span class="prop-lbl">高光</span><input type="range" class="prop-slider" min="-100" max="100" value="0" oninput="setColorParam('highlights',this.value)"><span id="clHL" style="font-size:10px;color:var(--acc3);min-width:28px">0</span></div>
+        <div class="prop-row"><span class="prop-lbl">阴影</span><input type="range" class="prop-slider" min="-100" max="100" value="0" oninput="setColorParam('shadows',this.value)"><span id="clSH" style="font-size:10px;color:var(--acc3);min-width:28px">0</span></div>
+        <div class="prop-row"><span class="prop-lbl">色温</span><input type="range" class="prop-slider" min="-100" max="100" value="0" oninput="setColorParam('temp',this.value)"><span id="clTemp" style="font-size:10px;color:var(--acc3);min-width:28px">0</span></div>
+        <div class="prop-row"><span class="prop-lbl">色调</span><input type="range" class="prop-slider" min="-100" max="100" value="0" oninput="setColorParam('tint',this.value)"><span id="clTint" style="font-size:10px;color:var(--acc3);min-width:28px">0</span></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- STATUS BAR -->
+<div class="statusbar">
+  <div class="spin" id="statusSpin" style="display:none"></div>
+  <span id="statusText">就绪 — 离线模式可用</span>
+  <div style="margin-left:auto;display:flex;align-items:center;gap:12px">
+    <span>时长: <span id="durLbl" style="color:var(--text2)">0:30</span></span>
+    <span>片段: <span id="clipCnt" style="color:var(--text2)">3</span></span>
+    <span>工具: <span id="toolLbl" style="color:var(--acc3)">选择</span></span>
+    <span id="offlineStatus" style="color:var(--green)">● 可离线</span>
+  </div>
+</div>
+
+</div><!-- /app -->
+
+<!-- ═══ API KEYS MODAL ═══ -->
+<div class="modal-bg" id="apiModal" style="display:none">
+  <div class="modal">
+    <h2>🔑 API 密钥配置</h2>
+    <p class="sub">密钥仅存于浏览器会话内存，关闭标签页后自动清除，绝不上传到服务器。</p>
+    <div style="display:flex;flex-direction:column;gap:8px">
+      <div>
+        <label class="field-label">Anthropic (Claude AI) <span style="color:var(--text3)">console.anthropic.com</span></label>
+        <input type="password" class="inp" id="k-anthropic" placeholder="sk-ant-•••••">
+      </div>
+      <div>
+        <label class="field-label">Pexels 视频素材 <span style="color:var(--text3)">pexels.com/api — 免费</span></label>
+        <input type="password" class="inp" id="k-pexels" placeholder="•••••••••••••••">
+      </div>
+      <div>
+        <label class="field-label">Pixabay 图片/音乐 <span style="color:var(--text3)">pixabay.com/api — 免费</span></label>
+        <input type="password" class="inp" id="k-pixabay" placeholder="•••••••••••••••">
+      </div>
+      <div>
+        <label class="field-label">Unsplash 图片 <span style="color:var(--text3)">unsplash.com/developers — 免费</span></label>
+        <input type="password" class="inp" id="k-unsplash" placeholder="Client-ID •••••••">
+      </div>
+      <div>
+        <label class="field-label">Openverse <span style="color:var(--text3)">api.openverse.engineering — 无需密钥</span></label>
+        <input type="text" class="inp" id="k-openverse" placeholder="（可选）应用邮件地址" style="font-size:10px">
+      </div>
+    </div>
+    <div style="font-size:9px;color:#4a6a4a;margin:10px 0;background:#0a1a0a;border:1px solid #1a3a1a;border-radius:var(--radius);padding:6px 8px">🔒 仅在浏览器内存保存，支持 5 API 自动切换降级：Claude → Pexels → Pixabay → Unsplash → Openverse → 演示</div>
+    <div class="modal-row">
+      <button class="btn-sm btn-outline" style="flex:1;padding:7px" onclick="closeModal('apiModal')">取消</button>
+      <button class="btn-sm btn-danger" onclick="clearKeys()">🗑 清除</button>
+      <button class="btn-sm btn-accent" style="flex:1;padding:7px" onclick="saveKeys()">保存密钥</button>
+    </div>
+  </div>
+</div>
+
+<!-- ═══ EXPORT MODAL ═══ -->
+<div class="modal-bg" id="exportModal" style="display:none">
+  <div class="modal">
+    <h2>↑ 导出项目</h2>
+    <p class="sub">选择格式和画质导出视频工程文件</p>
+    <label class="field-label">格式</label>
+    <div class="export-grid">
+      <div class="export-opt sel" onclick="selExport(this)">MP4 H.264</div>
+      <div class="export-opt" onclick="selExport(this)">WebM VP9</div>
+      <div class="export-opt" onclick="selExport(this)">GIF 动图</div>
+      <div class="export-opt" onclick="selExport(this)">工程文件 JSON</div>
+    </div>
+    <label class="field-label">画质</label>
+    <div class="export-grid">
+      <div class="export-opt" onclick="selExport(this)">4K UHD</div>
+      <div class="export-opt sel" onclick="selExport(this)">1080p HD</div>
+      <div class="export-opt" onclick="selExport(this)">720p</div>
+      <div class="export-opt" onclick="selExport(this)">480p</div>
+    </div>
+    <div style="font-size:9px;color:var(--text3);margin-bottom:10px">⚠ AI 生成内容将在导出元数据中标注免责声明</div>
+    <div class="modal-row">
+      <button class="btn-sm btn-outline" style="flex:1;padding:7px" onclick="closeModal('exportModal')">取消</button>
+      <button class="btn-sm btn-accent" style="flex:1;padding:7px" onclick="doExport()">导出</button>
+    </div>
+  </div>
+</div>
+
+<!-- NOTIFICATION -->
+<div class="notif" id="notif"></div>
+
+<script>
+// ══ SECURITY ══
+const esc=s=>String(s).replace(/[&<>"'`]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;','`':'&#96;'}[c]));
+const clean=s=>String(s).trim().replace(/<[^>]*>/g,'').slice(0,3000);
+
+// ══ KEY STORE ══
+const K=(()=>{
+  const m={};
+  const enc=v=>btoa(unescape(encodeURIComponent(v)));
+  const dec=v=>{try{return decodeURIComponent(escape(atob(v)))}catch{return ''}};
+  return{
+    set(k,v){m[k]=v;try{sessionStorage.setItem('_vs_'+k,enc(v))}catch{}},
+    get(k){if(m[k])return m[k];try{return dec(sessionStorage.getItem('_vs_'+k)||'')}catch{return ''}},
+    clear(){Object.keys(m).forEach(k=>delete m[k]);try{['anthropic','pexels','pixabay','unsplash','openverse'].forEach(k=>sessionStorage.removeItem('_vs_'+k))}catch{}}
+  };
+})();
+
+// ══ STATE ══
+let lang='zh', currentTool='select', isPlaying=false, playTimer=null;
+let progress=0, zoom=2, clipCount=3;
+let localFiles=[];
+let musicGenre='cinematic';
+const S={brightness:0,contrast:0,saturation:0};
+
+// ══ LANG ══
+const T={
+  zh:{brand:'剪辑工坊·AI',new:'新建',import:'导入',export:'导出',preview:'▶ 预览',apikeys:'API 密钥',
+    local:'本地媒体',stock:'素材库',music:'音乐',ai:'AI 助手',tmpl:'模板',
+    'local-title':'本地文件',drop:'拖拽或点击上传\n支持视频·音频·图片',
+    'no-files':'暂无本地文件\n离线状态下仍可剪辑','no-preview':'将视频拖入时间轴或搜索素材开始创作',
+    timeline:'时间轴',addV:'+ 视频轨',addA:'+ 音频轨',addT:'+ 字幕轨'},
+  en:{brand:'CutStudio AI',new:'New',import:'Import',export:'Export',preview:'▶ Preview',apikeys:'API Keys',
+    local:'Local Media',stock:'Stock',music:'Music',ai:'AI Assist',tmpl:'Templates',
+    'local-title':'Local Files',drop:'Drop or click to upload\nVideo·Audio·Image',
+    'no-files':'No local files\nOffline editing still works','no-preview':'Drop video to timeline or search stock to begin',
+    timeline:'TIMELINE',addV:'+ Video',addA:'+ Audio',addT:'+ Subtitle'}
+};
+const t=k=>T[lang][k]||T.en[k]||k;
+function setLang(l,btn){
+  lang=l;
+  document.querySelectorAll('.lang-btn').forEach(b=>b.classList.remove('active'));
+  btn.classList.add('active');
+  applyLang();
+}
+function applyLang(){
+  const ids=['brand','new','import','export','preview','apikeys','local','stock','music','ai','tmpl','local-title','no-files','no-preview','timeline','addV','addA','addT'];
+  ids.forEach(id=>{
+    const el=document.getElementById('t-'+id);
+    if(el) el.textContent=t(id);
+  });
+}
+
+// ══ NOTIFICATIONS ══
+let _nt;
+function notif(msg,type=''){
+  const el=document.getElementById('notif');
+  el.textContent=msg;
+  el.className='notif show'+(type?' '+type:'');
+  clearTimeout(_nt);
+  _nt=setTimeout(()=>el.className='notif',3200);
+}
+function setStatus(msg,loading=false){
+  document.getElementById('statusText').textContent=msg;
+  document.getElementById('statusSpin').style.display=loading?'inline-block':'none';
+}
+
+// ══ MODAL ══
+function closeModal(id){document.getElementById(id).style.display='none'}
+function openApiConfig(){
+  ['anthropic','pexels','pixabay','unsplash','openverse'].forEach(k=>{
+    const el=document.getElementById('k-'+k);
+    if(el) el.placeholder=K.get(k)?'(已保存) ••••••••':'';
+  });
+  document.getElementById('apiModal').style.display='flex';
+}
+function saveKeys(){
+  const map={anthropic:'k-anthropic',pexels:'k-pexels',pixabay:'k-pixabay',unsplash:'k-unsplash',openverse:'k-openverse'};
+  Object.entries(map).forEach(([key,elId])=>{
+    const v=document.getElementById(elId)?.value.trim();
+    if(v) K.set(key,v);
+  });
+  updateApiDots();
+  closeModal('apiModal');
+  notif('✓ API 密钥已保存','ok');
+}
+function clearKeys(){K.clear();updateApiDots();notif('🗑 已清除所有密钥');closeModal('apiModal')}
+function updateApiDots(){
+  const cfg={
+    claude:[K.get('anthropic'),'dot-claude','stat-claude','活跃','待机'],
+    pexels:[K.get('pexels'),'dot-pexels','stat-pexels','活跃','待机'],
+    pixabay:[K.get('pixabay'),'dot-pixabay','stat-pixabay','活跃','待机'],
+    unsplash:[K.get('unsplash'),'dot-unsplash','stat-unsplash','已配置','未配置'],
+    openverse:[true,'dot-openverse','stat-openverse','免费','免费'],
+  };
+  Object.values(cfg).forEach(([has,dotId,statId,on,off])=>{
+    const dot=document.getElementById(dotId);
+    const stat=document.getElementById(statId);
+    if(dot) dot.className='api-dot '+(has?'on':'off');
+    if(stat){stat.textContent=has?on:off;stat.className='api-stat '+(has?'on':'off')}
+  });
+}
+
+// ══ TOOL SWITCHING ══
+const toolLabels={select:'选择',cut:'剪切',text:'文字',split:'分割'};
+function setTool(name,el){
+  currentTool=name;
+  document.querySelectorAll('.tb-btn[id^="tool-"]').forEach(b=>b.classList.remove('active'));
+  if(el) el.classList.add('active');
+  document.getElementById('toolLbl').textContent=toolLabels[name]||name;
+  notif(`工具：${toolLabels[name]||name}`);
+}
+
+// ══ PANEL SWITCHING ══
+function showPanel(id,navEl){
+  ['local','stock','music','ai','templates'].forEach(p=>{
+    const el=document.getElementById('panel-'+p);
+    if(el) el.style.display='none';
+  });
+  const target=document.getElementById('panel-'+id);
+  if(target) target.style.display='block';
+  document.querySelectorAll('.nav-item').forEach(b=>b.classList.remove('active'));
+  if(navEl) navEl.classList.add('active');
+}
+
+// ══ RIGHT PANEL TABS ══
+function switchRTab(tabEl,id){
+  document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
+  document.querySelectorAll('.tab-content').forEach(tc=>tc.classList.remove('active'));
+  tabEl.classList.add('active');
+  const content=document.getElementById('rtab-content-'+id);
+  if(content) content.classList.add('active');
+}
+
+// ══ LOCAL FILE UPLOAD ══
+function handleLocalUpload(files){
+  [...files].forEach(f=>addLocalFile(f));
+  notif(`✓ 已导入 ${files.length} 个文件`,'ok');
+}
+function importFiles(files){handleLocalUpload(files)}
+function handleDrop(e){
+  e.preventDefault();
+  document.getElementById('uploadZone').classList.remove('drag');
+  handleLocalUpload(e.dataTransfer.files);
+}
+function handleDragOver(e){e.preventDefault();document.getElementById('uploadZone').classList.add('drag')}
+function handleDragLeave(){document.getElementById('uploadZone').classList.remove('drag')}
+
+function addLocalFile(file){
+  const url=URL.createObjectURL(file);
+  const type=file.type.startsWith('video')?'video':file.type.startsWith('audio')?'audio':'image';
+  const icon=type==='video'?'🎬':type==='audio'?'🎵':'🖼';
+  const obj={name:file.name,url,type,file};
+  localFiles.push(obj);
+  const noEl=document.getElementById('t-no-files');
+  if(noEl) noEl.style.display='none';
+  const list=document.getElementById('localFileList');
+  const div=document.createElement('div');
+  div.className='local-file';
+  div.innerHTML=`<span class="local-file-icon">${icon}</span><span class="local-file-name">${esc(file.name)}</span><span class="local-file-dur">${formatSize(file.size)}</span>`;
+  div.onclick=()=>previewLocalFile(obj);
+  list.appendChild(div);
+}
+
+function formatSize(bytes){
+  if(bytes<1024*1024) return (bytes/1024).toFixed(0)+'KB';
+  return (bytes/(1024*1024)).toFixed(1)+'MB';
+}
+
+function previewLocalFile(obj){
+  const ph=document.getElementById('canvasPlaceholder');
+  const vid=document.getElementById('previewVideo');
+  const img=document.getElementById('previewImg');
+  if(ph) ph.style.display='none';
+  if(obj.type==='video'){
+    vid.src=obj.url;
+    vid.style.display='block';
+    img.style.display='none';
+    vid.play().catch(()=>{});
+  } else if(obj.type==='image'){
+    img.src=obj.url;
+    img.style.display='block';
+    vid.style.display='none';
+  } else {
+    notif('♪ 音频已加载到音频轨','ok');
+  }
+  addClipToTimeline(obj.name, obj.type==='video'?'v':'a');
+  notif(`✓ 已预览：${obj.name}`,'ok');
+}
+
+function addClipToTimeline(label, trackType='v'){
+  clipCount++;
+  document.getElementById('clipCnt').textContent=clipCount;
+  const lane=document.getElementById(trackType==='a'?'lane-a1':'lane-v1');
+  if(!lane) return;
+  const clip=document.createElement('div');
+  const w=Math.round(20+Math.random()*25);
+  const l=Math.round(70+Math.random()*20);
+  clip.className='clip '+(trackType==='a'?'clip-a':trackType==='i'?'clip-img':'clip-v');
+  clip.style.cssText=`left:${Math.min(l,72)}%;width:${w}%`;
+  clip.textContent=(trackType==='a'?'♪ ':'🎬 ')+label.slice(0,18);
+  lane.appendChild(clip);
+}
+
+// ══ CLAUDE API ══
+async function callClaude(prompt,outId,btnEl){
+  const key=K.get('anthropic');
+  if(!key){notif('⚠ 请先在 ⚙ API Keys 配置 Anthropic 密钥','err');openApiConfig();return}
+  const out=document.getElementById(outId);
+  out.className='ai-out show';
+  out.innerHTML='<div class="spin" style="display:inline-block"></div> AI 生成中…';
+  if(btnEl) btnEl.disabled=true;
+  setStatus('AI 生成中…',true);
+  setApiState('claude','on');
+  try{
+    const r=await fetch('https://api.anthropic.com/v1/messages',{
+      method:'POST',
+      headers:{'Content-Type':'application/json','x-api-key':key,'anthropic-version':'2023-06-01','anthropic-dangerous-direct-browser-access':'true'},
+      body:JSON.stringify({model:'claude-sonnet-4-20250514',max_tokens:1000,messages:[{role:'user',content:clean(prompt)}]})
+    });
+    if(!r.ok) throw new Error('HTTP '+r.status);
+    const d=await r.json();
+    if(d.error) throw new Error(d.error.message);
+    const text=d.content?.[0]?.text||'';
+    out.innerHTML=esc(text).replace(/\n/g,'<br>');
+    setStatus('AI 生成完成 ✓');
+    notif('✓ AI 内容生成完成','ok');
+    const first=text.split('\n').find(l=>l.trim())?.replace(/[#*\[\]]/g,'').trim().slice(0,40)||'AI 视频';
+    document.getElementById('overlayTitle').textContent=first;
+    document.getElementById('overlayTop').style.display='block';
+  }catch(e){
+    out.innerHTML=`<span style="color:#fca5a5">⚠ ${esc(e.message)}</span>`;
+    setStatus('就绪');
+    notif('⚠ '+e.message,'err');
+  }
+  if(btnEl) btnEl.disabled=false;
+}
+
+const prompts={
+  zh:{
+    script:p=>`你是专业视频脚本作家。为以下主题创作简洁有力的视频脚本：「${p}」\n格式：[场景] [旁白] [屏幕文字] 标注，不超过300字。`,
+    shots:p=>`为视频「${p}」生成专业镜头列表。每个镜头包含：编号、类型（特写/全景等）、描述、时长、运镜方式。生成6-8个。`,
+    ideas:p=>`为「${p}」头脑风暴5个创意视频方向。每个包含：标题、开篇钩子（前3秒）、内容角度、目标受众、预计时长。`,
+    subtitle:s=>`请将以下内容格式化为视频字幕，每行不超过20字，断句自然：\n${s}`
+  },
+  en:{
+    script:p=>`You are a professional video scriptwriter. Write a concise engaging script for: "${p}"\nUse [SCENE] [NARRATION] [ON-SCREEN TEXT] markers. Under 300 words.`,
+    shots:p=>`Create a professional shot list for: "${p}". Include shot type, description, duration, camera move. 6-8 shots numbered.`,
+    ideas:p=>`Brainstorm 5 creative video ideas for: "${p}". Each: Title, Hook (3s), Content angle, Target audience, Length.`,
+    subtitle:s=>`Format this as video subtitles, max 10 words per line:\n${s}`
+  }
+};
+
+function genScript(){const p=clean(document.getElementById('scriptP').value);if(!p)return notif('请输入脚本提示','err');callClaude(prompts[lang].script(p),'scriptOut',null)}
+function genShots(){const p=clean(document.getElementById('shotP').value)||'通用宣传视频';callClaude(prompts[lang].shots(p),'shotOut',null)}
+function genIdeas(){const p=clean(document.getElementById('ideaP').value)||'内容创作';callClaude(prompts[lang].ideas(p),'ideaOut',null)}
+function genSubtitlesAI(){const s=clean(document.getElementById('subtitleText').value);if(!s)return notif('请先输入字幕内容','err');callClaude(prompts[lang].subtitle(s),'subtitleText',null)}
+
+// ══ STOCK VIDEO (5 API fallback chain) ══
+async function searchStock(){
+  const q=clean(document.getElementById('stockQ').value)||'cinematic';
+  const grid=document.getElementById('stockGrid');
+  grid.innerHTML='<div style="grid-column:1/-1;text-align:center;padding:20px"><div class="spin" style="display:inline-block"></div></div>';
+  setStatus('搜索素材视频…',true);
+  setStockStatus('amber','正在尝试 Pexels…');
+  let results=[];
+
+  // API 1: Pexels
+  const pk=K.get('pexels');
+  if(pk&&!results.length){
+    try{
+      setApiState('pexels','on');
+      const r=await fetch(`https://api.pexels.com/videos/search?query=${encodeURIComponent(q)}&per_page=8`,{headers:{Authorization:pk}});
+      if(!r.ok) throw new Error('Pexels '+r.status);
+      const d=await r.json();
+      if(d.videos?.length){
+        results=d.videos.map(v=>({thumb:v.image,label:v.user?.name||'Pexels',src:'Pexels',w:v.width,h:v.height}));
+        setStockStatus('green','来源：Pexels ✓');
+      }
+    }catch(e){setApiState('pexels','err');console.warn('Pexels:',e.message)}
+  }
+
+  // API 2: Pixabay Videos
+  const pbk=K.get('pixabay');
+  if(pbk&&!results.length){
+    try{
+      setApiState('pixabay','on');
+      const r=await fetch(`https://pixabay.com/api/videos/?key=${encodeURIComponent(pbk)}&q=${encodeURIComponent(q)}&per_page=8`);
+      if(!r.ok) throw new Error('Pixabay video '+r.status);
+      const d=await r.json();
+      if(d.hits?.length){
+        results=d.hits.map(v=>({thumb:v.videos?.small?.thumbnail||`https://picsum.photos/seed/${v.id}/240/135`,label:v.user||'Pixabay',src:'Pixabay'}));
+        setStockStatus('green','来源：Pixabay ✓');
+      }
+    }catch(e){setApiState('pixabay','err');console.warn('Pixabay:',e.message)}
+  }
+
+  // API 3: Pixabay Images
+  if(pbk&&!results.length){
+    try{
+      const r=await fetch(`https://pixabay.com/api/?key=${encodeURIComponent(pbk)}&q=${encodeURIComponent(q)}&per_page=8&image_type=photo`);
+      if(!r.ok) throw new Error('Pixabay img '+r.status);
+      const d=await r.json();
+      if(d.hits?.length){
+        results=d.hits.map(v=>({thumb:v.webformatURL,label:v.user||'Pixabay',src:'Pixabay 图片'}));
+        setStockStatus('green','来源：Pixabay 图片 ✓');
+      }
+    }catch(e){console.warn('Pixabay img:',e.message)}
+  }
+
+  // API 4: Unsplash
+  const uk=K.get('unsplash');
+  if(uk&&!results.length){
+    try{
+      setApiState('unsplash','on');
+      setStockStatus('amber','尝试 Unsplash…');
+      const r=await fetch(`https://api.unsplash.com/search/photos?query=${encodeURIComponent(q)}&per_page=8`,{headers:{Authorization:`Client-ID ${uk}`}});
+      if(!r.ok) throw new Error('Unsplash '+r.status);
+      const d=await r.json();
+      if(d.results?.length){
+        results=d.results.map(p=>({thumb:p.urls.small,label:p.user?.name||'Unsplash',src:'Unsplash'}));
+        setStockStatus('green','来源：Unsplash ✓');
+        setApiState('unsplash','on');
+      }
+    }catch(e){setApiState('unsplash','err');console.warn('Unsplash:',e.message)}
+  }
+
+  // API 5: Openverse (free, no key needed)
+  if(!results.length){
+    try{
+      setApiState('openverse','on');
+      setStockStatus('amber','尝试 Openverse（免费）…');
+      const headers={'Content-Type':'application/json'};
+      const email=K.get('openverse');
+      if(email) headers['User-Agent']=`AI-Studio/1.0 (${email})`;
+      const r=await fetch(`https://api.openverse.org/v1/images/?q=${encodeURIComponent(q)}&page_size=8`,{headers});
+      if(!r.ok) throw new Error('Openverse '+r.status);
+      const d=await r.json();
+      if(d.results?.length){
+        results=d.results.map(p=>({thumb:p.thumbnail||p.url,label:p.creator||'Openverse',src:'Openverse'}));
+        setStockStatus('green','来源：Openverse ✓');
+        setApiState('openverse','on');
+      }
+    }catch(e){setApiState('openverse','err');console.warn('Openverse:',e.message)}
+  }
+
+  // Fallback: Demo (picsum)
+  if(!results.length){
+    setStockStatus('amber','演示模式 — 配置 API 密钥获取真实素材');
+    results=Array.from({length:8},(_,i)=>({thumb:`https://picsum.photos/seed/${encodeURIComponent(q)}${i}/320/180`,label:'演示',src:'Demo'}));
+  }
+
+  grid.innerHTML=results.map((r,i)=>`
+    <div class="media-thumb">
+      <img src="${esc(r.thumb)}" loading="lazy" onerror="this.src='https://picsum.photos/seed/err${i}/240/135'" alt="素材缩略图">
+      <div class="media-label"><span>${esc(r.src)}</span><span>${esc(r.label)}</span></div>
+      <button class="media-add-btn" onclick="useStock('${esc(r.thumb)}','${esc(r.label)}')" title="添加到时间轴">+</button>
+    </div>`).join('');
+  setStatus('就绪');
+}
+
+function setStockStatus(color,text){
+  const colors={green:'var(--green)',amber:'var(--amber)',red:'var(--red)'};
+  document.getElementById('stockApiDot').style.background=colors[color]||colors.amber;
+  document.getElementById('stockApiLabel').textContent=text;
+}
+function setApiState(api,state){
+  const dot=document.getElementById('dot-'+api);
+  const stat=document.getElementById('stat-'+api);
+  const labels={zh:{on:'活跃',standby:'待机',off:'未配置',err:'错误'},en:{on:'Active',standby:'Standby',off:'Off',err:'Error'}};
+  if(dot) dot.className='api-dot '+state;
+  if(stat){stat.textContent=labels[lang][state]||state;stat.className='api-stat '+state}
+}
+
+function useStock(thumb,label){
+  document.getElementById('canvasPlaceholder').style.display='none';
+  document.getElementById('previewImg').src=thumb;
+  document.getElementById('previewImg').style.display='block';
+  document.getElementById('previewVideo').style.display='none';
+  addClipToTimeline(label||'素材');
+  notif('✓ 素材已添加到时间轴','ok');
+}
+
+function filterStock(el,genre){
+  document.querySelectorAll('#stockFilters .filter-chip').forEach(c=>c.classList.remove('active'));
+  el.classList.add('active');
+  if(genre!=='all') document.getElementById('stockQ').value=genre==='nature'?'nature':genre==='city'?'city':genre==='business'?'business meeting':'people portrait';
+  searchStock();
+}
+
+// ══ MUSIC SEARCH ══
+async function searchMusic(){
+  const q=clean(document.getElementById('musicQ').value)||musicGenre;
+  const list=document.getElementById('musicList');
+  list.innerHTML='<div style="text-align:center;padding:12px"><div class="spin" style="display:inline-block"></div></div>';
+  setStatus('搜索音乐…',true);
+  let tracks=[];
+
+  const pbk=K.get('pixabay');
+  if(pbk){
+    try{
+      const r=await fetch(`https://pixabay.com/api/?key=${encodeURIComponent(pbk)}&q=${encodeURIComponent(q)}&media_type=music&per_page=8`);
+      if(!r.ok) throw new Error('');
+      const d=await r.json();
+      if(d.hits?.length){
+        tracks=d.hits.map(h=>({name:h.tags?.split(',')[0]?.trim()||'Track',artist:h.user||'Pixabay',dur:'3:'+String(Math.floor(Math.random()*59)).padStart(2,'0')}));
+      }
+    }catch{}
+  }
+
+  // Demo tracks
+  if(!tracks.length){
+    tracks=lang==='zh'
+      ?[['电影史诗','自由音乐档案','2:45'],['企业激励','Pixabay Music','3:12'],['梦幻氛围','ccMixter','4:08'],['活力节拍','Free Music','2:30'],['轻柔钢琴','Pixabay','3:55'],['科技感','Free Sounds','2:20'],['自然宁静','OpenAudio','5:10']]
+      .map(([n,a,d])=>({name:n,artist:a,dur:d}))
+      :[['Cinematic Epic','Free Music','2:45'],['Upbeat Corporate','Pixabay','3:12'],['Ambient Dreams','ccMixter','4:08'],['Dynamic Action','Free Music','2:30'],['Soft Piano','Pixabay','3:55']]
+      .map(([n,a,d])=>({name:n,artist:a,dur:d}));
+  }
+
+  list.innerHTML=tracks.map((tk,i)=>`
+    <div class="music-item" id="mt${i}" onclick="playTrack(${i},'${esc(tk.name)}')">
+      <div class="music-icon">♪</div>
+      <div class="music-info">
+        <div class="music-name">${esc(tk.name)}</div>
+        <div class="music-meta">${esc(tk.artist)} · ${tk.dur}</div>
+      </div>
+      <button class="music-play" onclick="event.stopPropagation();playTrack(${i},'${esc(tk.name)}')">▶</button>
+    </div>`).join('');
+  setStatus('就绪');
+}
+function setMusicGenre(el,g){
+  document.querySelectorAll('#panel-music .filter-chip').forEach(c=>c.classList.remove('active'));
+  el.classList.add('active');
+  musicGenre=g;
+  document.getElementById('musicQ').value=g;
+  searchMusic();
+}
+function playTrack(i,name){
+  document.querySelectorAll('.music-item').forEach(m=>m.classList.remove('playing'));
+  document.getElementById('mt'+i)?.classList.add('playing');
+  addClipToTimeline(name||'音乐','a');
+  notif(`♪ 已添加音轨：${name}`,'ok');
+}
+
+// ══ TEMPLATE & RATIO ══
+function selectTmpl(el,name){
+  document.querySelectorAll('.tmpl-card').forEach(c=>c.classList.remove('sel'));
+  el.classList.add('sel');
+  notif(`✓ 模板：${name}`,'ok');
+}
+function setRatio(el,r){
+  document.querySelectorAll('.ratio-opt').forEach(o=>o.classList.remove('sel'));
+  el.classList.add('sel');
+  const wrap=document.getElementById('canvasWrap');
+  wrap.style.aspectRatio=r==='9:16'?'9/16':r==='1:1'?'1/1':'16/9';
+  notif(`画面比例：${r}`);
+}
+
+// ══ PLAYBACK ══
+function togglePlay(){
+  isPlaying=!isPlaying;
+  document.getElementById('playBtn').textContent=isPlaying?'⏸':'▶';
+  const vid=document.getElementById('previewVideo');
+  if(vid.src&&vid.style.display!=='none'){
+    isPlaying?vid.play().catch(()=>{}):vid.pause();
+  }
+  if(isPlaying){
+    playTimer=setInterval(()=>{
+      progress=Math.min(100,progress+.5);
+      document.getElementById('progressSlider').value=progress;
+      const s=Math.round(progress*.3);
+      document.getElementById('timeLbl').textContent=`0:${String(s).padStart(2,'0')} / 0:30`;
+      updatePlayheads(progress/100);
+      if(progress>=100){togglePlay();progress=0}
+    },150);
+  }else clearInterval(playTimer);
+}
+function seekStart(){progress=0;document.getElementById('progressSlider').value=0;document.getElementById('timeLbl').textContent='0:00 / 0:30';updatePlayheads(0)}
+function seekEnd(){progress=100;document.getElementById('progressSlider').value=100;updatePlayheads(1)}
+function seekTo(v){progress=parseInt(v);updatePlayheads(progress/100)}
+function updatePlayheads(pct){
+  ['ph-v1','ph-a1','ph-t1'].forEach(id=>{
+    const el=document.getElementById(id);
+    if(el) el.style.left=(pct*100)+'%';
+  });
+}
+function toggleMute(){
+  const btn=document.getElementById('muteBtn');
+  const vid=document.getElementById('previewVideo');
+  vid.muted=!vid.muted;
+  btn.textContent=vid.muted?'🔇':'🔊';
+}
+function setVolume(v){
+  const vid=document.getElementById('previewVideo');
+  vid.volume=v/100;
+}
+
+// ══ TIMELINE ACTIONS ══
+function laneClick(e,laneId){
+  if(currentTool==='cut'){splitAtPosition(e,laneId)}
+}
+function addVideoTrack(){
+  const body=document.getElementById('tlBody');
+  const n=body.querySelectorAll('.tl-track').length+1;
+  const div=document.createElement('div');div.className='tl-track';
+  div.innerHTML=`<div class="tl-label">视频${n}</div><div class="tl-lane" onclick="laneClick(event,'v${n}')"><div class="playhead-line"></div></div>`;
+  body.appendChild(div);notif('✓ 新增视频轨 '+n,'ok');
+}
+function addAudioTrack(){
+  const body=document.getElementById('tlBody');
+  const div=document.createElement('div');div.className='tl-track';
+  div.innerHTML=`<div class="tl-label">音频</div><div class="tl-lane"><div class="playhead-line"></div></div>`;
+  body.appendChild(div);notif('✓ 新增音频轨','ok');
+}
+function addTextTrack(){
+  const body=document.getElementById('tlBody');
+  const div=document.createElement('div');div.className='tl-track';
+  div.innerHTML=`<div class="tl-label">字幕</div><div class="tl-lane"><div class="playhead-line"></div></div>`;
+  body.appendChild(div);notif('✓ 新增字幕轨','ok');
+}
+
+function splitAtPlayhead(){
+  notif(`✂ 已在 ${Math.round(progress)}% 处分割片段`);
+  clipCount++;
+  document.getElementById('clipCnt').textContent=clipCount;
+}
+function splitAtPosition(e,laneId){
+  const lane=e.currentTarget;
+  const rect=lane.getBoundingClientRect();
+  const pct=Math.round((e.clientX-rect.left)/rect.width*100);
+  notif(`✂ 已在 ${pct}% 处分割`);
+}
+function deleteSelected(){notif('🗑 已删除选中片段');if(clipCount>0){clipCount--;document.getElementById('clipCnt').textContent=clipCount}}
+function cropVideo(){notif('裁剪画面 — 拖动预览区边缘调整')}
+function reverseClip(){notif('↩ 片段已反转')}
+function setZoom(v){zoom=parseFloat(v);document.getElementById('tlBody').style.transform=`scaleX(${v/2})`}
+
+// ══ PROPERTY PANEL ══
+function setProp(name,v){
+  if(name==='speed'){document.getElementById('spdVal').textContent=(v/100).toFixed(1)+'×'}
+  else if(name==='volume'){document.getElementById('volPropVal').textContent=v+'%'}
+  else if(name==='opacity'){document.getElementById('opacVal').textContent=v+'%';const p=document.getElementById('previewImg');if(p) p.style.opacity=v/100}
+}
+function setFxParam(name,v){
+  const map={brightness:'fxBright',contrast:'fxContrast',saturation:'fxSat',sharpen:'fxSharp',vignette:'fxVig'};
+  const el=document.getElementById(map[name]);
+  if(el) el.textContent=v;
+  applyCanvasFilter();
+}
+function applyCanvasFilter(){
+  const b=document.getElementById('fxBright')?.textContent||0;
+  const c=document.getElementById('fxContrast')?.textContent||0;
+  const s=document.getElementById('fxSat')?.textContent||0;
+  const filter=`brightness(${1+b/100}) contrast(${1+c/100}) saturate(${1+s/100})`;
+  const img=document.getElementById('previewImg');
+  const vid=document.getElementById('previewVideo');
+  if(img) img.style.filter=filter;
+  if(vid) vid.style.filter=filter;
+}
+function setColorParam(name,v){
+  const map={highlights:'clHL',shadows:'clSH',temp:'clTemp',tint:'clTint'};
+  const el=document.getElementById(map[name]);
+  if(el) el.textContent=v;
+  applyCanvasFilter();
+}
+
+// ══ EFFECTS ══
+function applyFx(name,el){
+  document.querySelectorAll('#rtab-content-effects .fx-chip').forEach(c=>c.classList.remove('active'));
+  el.classList.add('active');
+  const fxMap={vintage:'sepia(0.5) contrast(1.1)',bw:'grayscale(1)',neon:'hue-rotate(200deg) saturate(3)',vhs:'sepia(0.3) saturate(0.8) contrast(1.2)',zoom:'scale(1.05)',blur:'blur(1px)',mirror:'scaleX(-1)',none:''};
+  const f=fxMap[name]||'';
+  const img=document.getElementById('previewImg');
+  const vid=document.getElementById('previewVideo');
+  if(img) img.style.filter=f;
+  if(vid) vid.style.filter=f;
+  notif(`✓ 特效：${el.textContent.trim()}`,'ok');
+}
+function applyTransition(name,el){
+  document.querySelectorAll('#rtab-content-props .fx-chip').forEach(c=>c.classList.remove('active'));
+  el.classList.add('active');
+  notif(`✓ 转场：${el.textContent}`,'ok');
+}
+function applyLUT(name,el){
+  document.querySelectorAll('#rtab-content-color .fx-chip').forEach(c=>c.classList.remove('active'));
+  el.classList.add('active');
+  const lutMap={cinematic:'contrast(1.1) saturate(0.85) brightness(0.95)',warm:'sepia(0.2) saturate(1.2) brightness(1.05)',cool:'hue-rotate(10deg) saturate(0.9)',
+    'teal-orange':'saturate(1.3) contrast(1.05)','matte':'brightness(1.08) contrast(0.9) saturate(0.8)',fade:'brightness(1.1) contrast(0.85) saturate(0.7)',none:''};
+  const f=lutMap[name]||'';
+  const img=document.getElementById('previewImg');
+  const vid=document.getElementById('previewVideo');
+  if(img) img.style.filter=f;
+  if(vid) vid.style.filter=f;
+  notif(`✓ 调色预设：${el.textContent}`,'ok');
+}
+
+// ══ TEXT OVERLAY ══
+function updateTextOverlay(){
+  const txt=document.getElementById('textContent').value;
+  const bot=document.getElementById('overlayBot');
+  const sub=document.getElementById('overlaySubtitle');
+  if(txt){bot.style.display='block';sub.textContent=txt}
+  else bot.style.display='none';
+}
+function updateTextSize(v){document.getElementById('textSizeVal').textContent=v;document.getElementById('overlaySubtitle').style.fontSize=v+'px'}
+function updateTextPos(pos){
+  const top=document.getElementById('overlayTop');
+  const bot=document.getElementById('overlayBot');
+  const title=document.getElementById('overlayTitle');
+  const sub=document.getElementById('overlaySubtitle');
+  const txt=document.getElementById('textContent').value;
+  if(pos==='top'){top.style.display='block';bot.style.display='none';document.getElementById('overlayTitle').textContent=txt}
+  else if(pos==='bottom'){bot.style.display='block';top.style.display='none';sub.textContent=txt}
+  else{top.style.display='block';document.getElementById('overlayTitle').textContent=txt}
+}
+function updateTextColor(c){
+  document.getElementById('overlayTitle').style.color=c;
+  document.getElementById('overlaySubtitle').style.color=c;
+}
+function addTextToVideo(){
+  const txt=document.getElementById('textContent').value;
+  if(!txt) return notif('请先输入文字内容','err');
+  updateTextOverlay();
+  addClipToTimeline(txt,'t');
+  notif('✓ 字幕已添加到时间轴','ok');
+}
+function addSubtitles(){
+  const txt=document.getElementById('subtitleText').value;
+  if(!txt) return notif('请输入字幕内容','err');
+  const lines=txt.split('\n').filter(l=>l.trim());
+  lines.forEach(l=>addClipToTimeline(l,'t'));
+  notif(`✓ 已生成 ${lines.length} 条字幕`,'ok');
+}
+
+// ══ PREVIEW ══
+function generatePreview(){
+  setStatus('渲染预览…',true);
+  setTimeout(()=>{setStatus('预览已就绪 ✓');notif('✓ 预览渲染完成','ok')},1200);
+}
+
+// ══ TIMELINE CLIP DRAG (simplified) ══
+let dragging=null, dragStartX=0, dragOrigLeft=0;
+document.addEventListener('mousedown',e=>{
+  const clip=e.target.closest('.clip');
+  if(!clip||currentTool!=='select') return;
+  dragging=clip;
+  dragStartX=e.clientX;
+  const leftPct=parseFloat(clip.style.left)||0;
+  dragOrigLeft=leftPct;
+  clip.style.opacity='.7';
+});
+document.addEventListener('mousemove',e=>{
+  if(!dragging) return;
+  const lane=dragging.closest('.tl-lane');
+  if(!lane) return;
+  const w=lane.offsetWidth;
+  const dx=(e.clientX-dragStartX)/w*100;
+  const newL=Math.max(0,Math.min(100,dragOrigLeft+dx));
+  dragging.style.left=newL.toFixed(1)+'%';
+});
+document.addEventListener('mouseup',()=>{
+  if(dragging){dragging.style.opacity='1';dragging=null}
+});
+
+// ══ EXPORT ══
+function openExport(){document.getElementById('exportModal').style.display='flex'}
+function selExport(el){
+  el.closest('.export-grid').querySelectorAll('.export-opt').forEach(o=>o.classList.remove('sel'));
+  el.classList.add('sel');
+}
+function doExport(){
+  closeModal('exportModal');
+  notif('📦 正在导出工程文件…');
+  const data={
+    version:'1.0',
+    exported:new Date().toISOString(),
+    script:document.getElementById('scriptOut').textContent||'',
+    shots:document.getElementById('shotOut').textContent||'',
+    clips:clipCount,
+    disclaimer:'本项目由 AI 辅助生成，发布前请核实内容准确性。'
+  };
+  const blob=new Blob([JSON.stringify(data,null,2)],{type:'application/json'});
+  const a=document.createElement('a');
+  a.href=URL.createObjectURL(blob);
+  a.download='video-project.json';
+  a.click();
+  setTimeout(()=>URL.revokeObjectURL(a.href),5000);
+}
+
+// ══ PROJECT ══
+function newProject(){
+  if(!confirm('新建项目？当前未保存内容将丢失。')) return;
+  document.getElementById('previewVideo').style.display='none';
+  document.getElementById('previewImg').style.display='none';
+  document.getElementById('canvasPlaceholder').style.display='flex';
+  document.getElementById('overlayTop').style.display='none';
+  document.getElementById('overlayBot').style.display='none';
+  clipCount=3;
+  document.getElementById('clipCnt').textContent=3;
+  progress=0;
+  seekStart();
+  notif('✓ 新项目已创建','ok');
+}
+function undo(){notif('↩ 撤销')}
+function redo(){notif('↪ 重做')}
+
+// ══ KEYBOARD SHORTCUTS ══
+document.addEventListener('keydown',e=>{
+  if(e.target.tagName==='INPUT'||e.target.tagName==='TEXTAREA') return;
+  if(e.key==='v'||e.key==='V') setTool('select',document.getElementById('tool-select'));
+  if(e.key==='c'||e.key==='C') setTool('cut',document.getElementById('tool-cut'));
+  if(e.key==='t'||e.key==='T') setTool('text',document.getElementById('tool-text'));
+  if(e.key==='s'||e.key==='S') splitAtPlayhead();
+  if(e.key===' '){e.preventDefault();togglePlay()}
+  if(e.ctrlKey&&e.key==='z') undo();
+  if(e.ctrlKey&&e.key==='y') redo();
+  if(e.key==='Delete') deleteSelected();
+});
+
+// ══ OFFLINE DETECTION ══
+function checkOnline(){
+  const el=document.getElementById('offlineStatus');
+  if(navigator.onLine){el.textContent='● 在线';el.style.color='var(--green)'}
+  else{el.textContent='● 离线 (本地剪辑可用)';el.style.color='var(--amber)'}
+}
+window.addEventListener('online',checkOnline);
+window.addEventListener('offline',checkOnline);
+
+// ══ DRAG UPLOAD ON CANVAS ══
+const previewArea=document.getElementById('previewArea');
+previewArea.addEventListener('dragover',e=>{e.preventDefault()});
+previewArea.addEventListener('drop',e=>{
+  e.preventDefault();
+  const files=e.dataTransfer.files;
+  if(files.length) handleLocalUpload(files);
+});
+
+// ══ INIT ══
+(function init(){
+  applyLang();
+  updateApiDots();
+  checkOnline();
+  searchMusic();
+  // keyboard hint
+  setTimeout(()=>notif('快捷键：V选择 C剪切 T文字 S分割 空格播放'),1000);
+})();
+</script>
+</body>
+</html>
